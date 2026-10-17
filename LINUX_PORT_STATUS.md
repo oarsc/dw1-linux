@@ -39,8 +39,8 @@ first map successfully. The `__DATA` segment limit crash on first map load is fi
 | 3 | Window opens on Linux | ✅ | Opens, shows title screen, skips intro, reaches main menu |
 | 3 | `XDG_RUNTIME_DIR` needed in container | ✅ | Must be set when running headless/in container |
 | 3 | `dl_iterate_phdr` for precise ELF `__DATA` segment limit | ✅ | `crates/psyq/src/memory.rs`: uses `dl_iterate_phdr` instead of `_end` + margin |
-| 4 | XDG paths for saves/settings/reports | ⬜ | Still `~/Library/Application Support/dw1-silicon/` |
-| 4 | `DW1_DATA_DIR` / `DW1_CONFIG_DIR` | ⬜ | |
+| 4 | XDG paths for saves/settings/reports | ✅ | `data_dir()` → `$XDG_DATA_HOME/dw1-linux/`; `config_dir()` → `$XDG_CONFIG_HOME/dw1-linux/`; `default_save_dir()` → `data_dir()`; `settings_path()` → `config_dir()/settings.txt`; `duckstation_card()` → `.local/share/duckstation/` |
+| 4 | `DW1_DATA_DIR` / `DW1_CONFIG_DIR` | ✅ | Uses `XDG_DATA_HOME`/`XDG_CONFIG_HOME` directly (XDG spec) |
 | 5 | Linux crash handler (SIGSEGV/SIGBUS) | ⬜ | `crates/dw1/src/main.rs` still has macOS arm64 signal handler |
 | 5 | `pthread_main_np` removed (applog main thread) | ✅ | `crates/dw1/src/applog.rs`: captures `pthread_self()` in `start()` |
 | 6 | `.desktop` file | ⬜ | |
@@ -60,9 +60,6 @@ first map successfully. The `__DATA` segment limit crash on first map load is fi
    ```
 2. Remaining macOS-only pieces:
    - `crates/dw1/src/main.rs`: crash handler (lines 39-127) uses `<mach/arm/_structs.h>` and macOS syscalls.
-   - `crates/dw1/src/main.rs`: `default_save_dir()` and `duckstation_card()` use `~/Library/Application Support/...`.
-   - `crates/dw1/src/settings.rs`: settings path.
-   - `crates/dw1/src/window/snapshot.rs`: reports path.
    - `crates/dw1/src/window/splash.rs`: "Native Mac build" text.
 3. Verify a legal copy of the Digimon World disc is available for testing (`DW1_DISC`).
 4. Read `dw1-silicon/docs/s06-platform.md` and `docs/s08-oracle.md` for context.
@@ -89,6 +86,14 @@ None — the game builds, opens a Vulkan window, and runs to the first map. Rema
   limit via `dl_iterate_phdr` (precise, no workaround margin), with `_end` as fallback.
 - `crates/render/Cargo.toml`: wgpu features changed from `metal` to `vulkan`.
 - `crates/dw1/src/window.rs`: removed `.metal_view()`, added `.vulkan()` to SDL3 window builder.
+- `crates/dw1/src/window.rs`: pause/unpause fixes — `self.events()` in `pad()` and
+  `wait_for_field()`, `sleep(1ms)` when no input, `start_was_pressed`/`pause_present_needed`
+  state, `present_pause_frame()` method.
+- `crates/dw1/src/main.rs`: `data_dir()` (`$XDG_DATA_HOME/dw1-silicon/`), `config_dir()`
+  (`$XDG_CONFIG_HOME/dw1-silicon/`), `default_save_dir()` → `data_dir()`,
+  `settings_path()` → `config_dir()/settings.txt`, `duckstation_card()` → XDG DuckStation path.
+- `crates/dw1/src/settings.rs`: `Settings::path()` uses `settings_path()` (XDG config dir).
+- `crates/dw1/src/window/snapshot.rs`: comment updated from macOS to Linux paths.
 
 ---
 

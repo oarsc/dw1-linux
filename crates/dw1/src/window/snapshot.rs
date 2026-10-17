@@ -1,8 +1,8 @@
 //! F12: a bug snapshot (Phase 9.3). Everything needed to look into a bug found in play goes into
-//! `~/Library/Application Support/dw1-silicon/reports/<UTC time>/`: the screen (1x and as shown),
+//! `~/.local/share/dw1-linux/reports/<UTC time>/`: the screen (1x and as shown),
 //! the game's state (the canonical record the oracle compares: place, day, the partner...), the
 //! last minute of pad input (in `DW1_PAD_SCRIPT`'s format), the settings, copies of the save
-//! slots, the log so far, and a note of what this is. Nothing leaves the Mac. It reads the game's
+//! slots, the log so far, and a note of what this is. It reads the game's
 //! state and changes nothing.
 
 use std::collections::VecDeque;

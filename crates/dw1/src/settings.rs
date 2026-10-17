@@ -1,5 +1,5 @@
 //! The window build's picture settings (Phase 8.4), kept in
-//! `~/Library/Application Support/dw1-silicon/settings.txt` and changed in play with hotkeys.
+//! `~/.config/dw1-silicon/settings.txt` and changed in play with hotkeys.
 //! Every option says whether it's the original or an addition: with `render_scale = 1` and
 //! `fit = integer` the picture is the PS1's, pixel for pixel.
 //!
@@ -51,9 +51,9 @@ pub fn auto_scale(shown_h: u32) -> u32 {
 }
 
 impl Settings {
-    /// The settings file, or None without a home directory.
+    /// The settings file, or None without a config directory.
     pub fn path() -> Option<PathBuf> {
-        crate::default_save_dir().map(|d| d.join("settings.txt"))
+        crate::settings_path()
     }
 
     /// The settings in `path` (defaults where the file says nothing or doesn't exist), and the

@@ -70,27 +70,24 @@ first map load is fixed (uses `dl_iterate_phdr` for precise ELF segment limit).
 
 ### 5. File Paths (Multiple Files)
 
-**Mac-specific paths (still pending):**
+**Done (XDG Base Directory Specification):**
 
 **Saves directory:**
-- `crates/dw1/src/main.rs` line 139-142: `~/Library/Application Support/dw1-silicon/`
-- `crates/dw1/src/settings.rs` line 2: Same path for settings.txt
-- `crates/dw1/src/window/snapshot.rs` line 2: Same path for reports
+- `crates/dw1/src/main.rs`: `data_dir()` → `$XDG_DATA_HOME/dw1-linux/` (default `~/.local/share/dw1-linux/`). Used by `save_dir()` for save slots (`cardN.mcd`).
+- `crates/dw1/src/window/snapshot.rs`: reports go to `data_dir()/reports/` → `~/.local/share/dw1-linux/reports/`.
+
+**Settings:**
+- `crates/dw1/src/settings.rs`: `Settings::path()` uses `settings_path()` → `$XDG_CONFIG_HOME/dw1-linux/settings.txt` (default `~/.config/dw1-linux/settings.txt`).
 
 **DuckStation card import:**
-- `crates/dw1/src/main.rs` line 217: `~/Library/Application Support/DuckStation/memcards/`
+- `crates/dw1/src/main.rs`: `duckstation_card()` → `~/.local/share/duckstation/memcards/Digimon World (USA)_1.mcd`.
 
-**Linux equivalents (XDG Base Directory Specification):**
-- Saves/settings: `$XDG_DATA_HOME/dw1-silicon/` (default: `~/.local/share/dw1-silicon/`)
-- Config: `$XDG_CONFIG_HOME/dw1-silicon/` (default: `~/.config/dw1-silicon/`)
-- Cache: `$XDG_CACHE_HOME/dw1-silicon/` (default: `~/.cache/dw1-silicon/`)
-- DuckStation path on Linux: `~/.local/share/duckstation/memcards/` or similar
-
-**Functions to modify:**
-- `default_save_dir()` in `main.rs`
-- Settings loading in `settings.rs`
-- Snapshot path in `snapshot.rs`
-- DuckStation card path in `main.rs`
+**Functions:**
+- `data_dir()` — XDG data dir for saves/reports
+- `config_dir()` — XDG config dir for settings
+- `default_save_dir()` — now returns `data_dir()`
+- `settings_path()` — returns `config_dir()/settings.txt`
+- `DW1_SAVE_DIR` env var still overrides save dir
 
 ### 6. Splash Screen (`crates/dw1/src/window/splash.rs`)
 
@@ -224,7 +221,13 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 | `crates/dw1/src/applog.rs` | Remove `pthread_main_np()`, use `pthread_self()` | ✅ Done |
 | `crates/psyq/src/memory.rs` | Mach-O symbols → ELF `__data_start` + `dl_iterate_phdr` | ✅ Done |
 | `crates/decomp-c/overlays.rs` | `.global` for overlay end symbols | ✅ Done |
-| `crates/decomp-c/src/overlays.rs` | Skip resident keep variables | ✅ Done |
+| `crates/dw1/src/main.rs` | `data_dir()`, `config_dir()`, `settings_path()`, `duckstation_card()` (XDG paths) | ✅ Done |
+| `crates/dw1/src/settings.rs` | XDG settings path (`config_dir()/settings.txt`) | ✅ Done |
+| `crates/dw1/src/window/snapshot.rs` | XDG reports path (`data_dir()/reports/`) | ✅ Done |
+| `crates/dw1/src/main.rs` | Crash handler (lines 39-127), `<mach/arm/_structs.h>` | ⬜ Pending |
+| `crates/dw1/src/window/splash.rs` | "Native Mac build" text | ⬜ Pending |
+| `tools/make-app.sh` | Replace with Linux build script | ⬜ Pending |
+| `packaging/Info.plist.in` | Replace with `.desktop` template | ⬜ Pending |
 
 ---
 
@@ -306,9 +309,9 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 
 | Purpose | macOS Path | Linux Path (XDG) |
 |---------|-----------|------------------|
-| Saves | `~/Library/Application Support/dw1-silicon/saves/` | `~/.local/share/dw1-silicon/saves/` |
-| Settings | `~/Library/Application Support/dw1-silicon/settings.txt` | `~/.config/dw1-silicon/settings.txt` |
-| Reports | `~/Library/Application Support/dw1-silicon/reports/` | `~/.local/share/dw1-silicon/reports/` |
+| Saves | `~/Library/Application Support/dw1-silicon/saves/` | `~/.local/share/dw1-linux/saves/` |
+| Settings | `~/Library/Application Support/dw1-silicon/settings.txt` | `~/.config/dw1-linux/settings.txt` |
+| Reports | `~/Library/Application Support/dw1-silicon/reports/` | `~/.local/share/dw1-linux/reports/` |
 | DuckStation cards | `~/Library/Application Support/DuckStation/memcards/` | `~/.local/share/duckstation/memcards/` |
 
 ### Reference documents

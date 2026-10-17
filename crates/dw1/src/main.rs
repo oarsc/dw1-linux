@@ -136,10 +136,37 @@ pub(crate) fn save_dir() -> Option<std::path::PathBuf> {
     }
 }
 
-/// `~/Library/Application Support/dw1-silicon`.
+/// The XDG data directory: `$XDG_DATA_HOME/dw1-linux/`
+/// (default `~/.local/share/dw1-linux/`). Holds save slots and reports.
+pub fn data_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("XDG_DATA_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".local/share"))
+        })
+        .map(|d| d.join("dw1-linux"))
+}
+
+/// The XDG config directory: `$XDG_CONFIG_HOME/dw1-linux/`
+/// (default `~/.config/dw1-linux/`). Holds settings.txt.
+pub fn config_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("XDG_CONFIG_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config"))
+        })
+        .map(|d| d.join("dw1-linux"))
+}
+
+/// `~/.local/share/dw1-linux` (XDG data dir).
 pub fn default_save_dir() -> Option<std::path::PathBuf> {
-    std::env::var_os("HOME")
-        .map(|h| std::path::PathBuf::from(h).join("Library/Application Support/dw1-silicon"))
+    data_dir()
+}
+
+/// The settings file: `$XDG_CONFIG_HOME/dw1-silicon/settings.txt`
+/// (default `~/.config/dw1-silicon/settings.txt`).
+pub fn settings_path() -> Option<std::path::PathBuf> {
+    config_dir().map(|d| d.join("settings.txt"))
 }
 
 /// The cards (Phase 7). Slot n's card is, in order: `card<n>.mcd` in the save directory when
@@ -214,7 +241,7 @@ fn insert_cards(keep: bool) {
 fn duckstation_card() -> Option<std::path::PathBuf> {
     let home = std::env::var_os("HOME")?;
     let card = std::path::PathBuf::from(home)
-        .join("Library/Application Support/DuckStation/memcards/Digimon World (USA)_1.mcd");
+        .join(".local/share/duckstation/memcards/Digimon World (USA)_1.mcd");
     card.exists().then_some(card)
 }
 

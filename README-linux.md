@@ -103,10 +103,17 @@ DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1
 ```
 
 > **Status:** The game builds, opens a Vulkan window, shows the title screen, skips the intro
-> video, reaches the main menu, starts a new game, and shows the Jijimon naming dialog. It
-> currently crashes when loading the first map because of a `__DATA` segment limit issue in
-> `crates/psyq/src/memory.rs`. A fix using `dl_iterate_phdr` for a precise ELF segment limit
-> has been implemented and needs testing.
+> video, reaches the main menu, starts a new game, shows the Jijimon naming dialog, and loads
+> the first map successfully. The `__DATA` segment limit crash on first map load has been fixed
+> (uses `dl_iterate_phdr` for a precise ELF segment limit).
+>
+> **File locations (XDG Base Directory Specification):**
+> - Saves: `$XDG_DATA_HOME/dw1-linux/saves/` (default `~/.local/share/dw1-linux/saves/`)
+> - Settings: `$XDG_CONFIG_HOME/dw1-linux/settings.txt` (default `~/.config/dw1-linux/settings.txt`)
+> - Reports: `$XDG_DATA_HOME/dw1-linux/reports/` (default `~/.local/share/dw1-linux/reports/`)
+> - DuckStation cards: `~/.local/share/duckstation/memcards/Digimon World (USA)_1.mcd`
+>
+> `DW1_SAVE_DIR` overrides the save directory if set.
 
 ### 7. Enter the container to edit code (optional)
 
