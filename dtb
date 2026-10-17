@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Script to run commands in docker. Execute it without parameters to build image.
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+if [ $# -eq 0 ]; then
+    distrobox create --name dw1 --image dw1-builder --volume "$PWD:/dw1" --nvidia
+    exit $?
+fi
+
+distrobox enter dw1 -- "$@"

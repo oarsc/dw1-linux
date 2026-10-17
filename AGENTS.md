@@ -2,108 +2,72 @@
 
 ## Project Overview
 
-dw1-silicon is a native port of Digimon World (PS1, USA SLUS-01032) from the matching decompilation project (jype0/dw_decomp). The original target is **arm64 macOS** (Apple Silicon), but the goal is to make it buildable on Linux.
+dw1-silicon is a native port of Digimon World (PS1, USA SLUS-01032) from the matching decompilation project (jype0/dw_decomp). The original target is **arm64 macOS** (Apple Silicon), but the goal is to make it buildable and runnable on Linux.
 
 **Architecture:** Hybrid approach - game C from decomp + Rust for everything new (PS1 libraries reimplemented). Long-term goal: full Rust migration.
 
-**Current Status (2026-10-15):** Phases 1-4, 6, 7, 8 done; Phase 9 under way. See PLAN.md for details.
+**Current Status (2026-10-17):** Build compiles and links for Linux x86_64. Vulkan renderer works. Game opens a window, shows title screen, skips intro video, reaches main menu, starts a new game, shows Jijimon naming dialog, then crashes on first map load due to `__DATA` segment limit (fix in progress in `crates/psyq/src/memory.rs`).
 
 ---
 
-## Critical Mac-Related Components for Linux Port
+## Critical Components for Linux Port
 
 ### 1. Build System (`tools/make-app.sh`)
 
 **Purpose:** Creates macOS `.app` bundle from the built binary.
 
-**Mac-specific tools used:**
-- `otool` - Checks linked libraries (line 29)
-- `codesign` - Signs the app ad-hoc (line 58)
-- `sips` - Generates icon sizes (lines 51, 53)
-- `iconutil` - Creates .icns from iconset (line 55)
-- `plutil` - Validates Info.plist (line 45)
-- `xcrun` - Not used directly but implied by otool for SDK info
-
 **Linux requirements:**
 - Remove or replace `.app` creation logic
 - Linux doesn't use app bundles; use standard binary packaging
 - Icons should be .png/.svg for Linux desktop files
-- No code signing needed (or use gpg for optional signing)
+- No code signing needed
 
 **File locations:**
 - App template: `packaging/Info.plist.in`
 - Icon source: `packaging/icon-1024.png`
 
----
-
 ### 2. C Compilation (`crates/decomp-c/build.rs`)
 
-**Target:** Currently compiles for **arm64 macOS** using Apple clang.
+**Target:** Linux x86_64 using system clang/gcc.
 
-**Mac-specific code:**
-- Line 1: Comment states "for arm64 macOS"
-- Line 410-413: Uses `xcrun --show-sdk-path` to get macOS SDK
-- Lines 416-426: Reads macOS SDK `.tbd` files to check for host symbol binding
-- Line 127: Comment "Plain char is signed for MIPS GCC and for Apple arm64"
-- Compile flags assume Apple clang behavior
+**Done (macOS code removed):**
+- `check_host_symbols()` (used `xcrun` + macOS SDK `.tbd` files) — deleted
+- `HOST_ALLOWED` host symbol allow-list — deleted
+- `xcrun` dependency — removed
+- All `#[cfg(target_os = "macos")]` conditional blocks — deleted
+- Compiler flags work with Linux clang/gcc
 
-**`check_host_symbols()` function (lines 388-438):**
-- Ensures game C doesn't bind to macOS libSystem functions
-- Reads macOS SDK `.tbd` stub files to get allowed symbols
-- This entire check is macOS-specific
-
-**Linux requirements:**
-- Use system clang/gcc instead of Apple clang
-- Remove `xcrun` dependency
-- Replace host symbol checking with Linux equivalent (check against glibc/musl symbols)
-- Handle different char signedness (Linux x86_64: char is signed by default)
-- Target x86_64 or keep arm64 if desired
+**Remaining:** None for compilation. The build succeeds with `cargo build --release -p dw1`.
 
 **Key includes/paths:**
 - Native include: `crates/decomp-c/include/dw1_native.h`
 - Psy-Q headers: `decomp/external/psyq_headers/mw_lib41/include`
 - Generated headers: from decomp's `tools/gen_text.py`
 
----
-
 ### 3. Rendering Backend (`crates/render`)
 
-**Current:** wgpu with **Metal** backend.
+**Current:** wgpu with **Vulkan** backend (was Metal on macOS).
 
-**Mac-specific code:**
-- `Cargo.toml` line 3: description mentions "wgpu on Metal"
-- `Cargo.toml` line 12: `features = ["metal", "wgsl", "std"]`
-- `src/lib.rs` line 1: Comment "wgpu (Metal)"
-- Window code uses `metal_view()` method
+**Done:**
+- `Cargo.toml`: `features = ["vulkan", "wgsl", "std"]`
+- Description updated to "wgpu on Vulkan"
 
-**Linux requirements:**
-- Change wgpu backend from Metal to Vulkan or OpenGL
-- Update `Cargo.toml` features: replace `metal` with `vulkan` or `gl`
-- No changes to the rendering logic itself (wgpu is cross-platform)
-
-**Alternative:** Use Vulkan (preferred for performance) or OpenGL (more compatible)
-
----
+**Remaining:** None — Vulkan backend compiles and opens a window.
 
 ### 4. Window System (`crates/dw1/src/window.rs`)
 
-**Current:** SDL3 with Metal rendering.
+**Current:** SDL3 with Vulkan rendering.
 
-**Mac-specific references:**
-- Line 1: Comment "wgpu on Metal"
-- Line 201: Comment about Metal layer order
-- Line 429: Calls `metal_view()`
+**Done:**
+- Removed `.metal_view()` call (line 429)
+- Added `.vulkan()` to SDL3 window builder
+- Comment about Metal layer order removed
 
-**Linux requirements:**
-- SDL3 is cross-platform - should work on Linux
-- Ensure SDL3 Vulkan/OpenGL backend is used instead of Metal
-- No other Mac-specific code detected
-
----
+**Remaining:** None — window opens and displays on Linux.
 
 ### 5. File Paths (Multiple Files)
 
-**Mac-specific paths:**
+**Mac-specific paths (still pending):**
 
 **Saves directory:**
 - `crates/dw1/src/main.rs` line 139-142: `~/Library/Application Support/dw1-silicon/`
@@ -113,11 +77,10 @@ dw1-silicon is a native port of Digimon World (PS1, USA SLUS-01032) from the mat
 **DuckStation card import:**
 - `crates/dw1/src/main.rs` line 217: `~/Library/Application Support/DuckStation/memcards/`
 
-**Linux equivalents:**
-- Use XDG Base Directory Specification:
-  - Saves/settings: `$XDG_DATA_HOME/dw1-silicon/` (default: `~/.local/share/dw1-silicon/`)
-  - Config: `$XDG_CONFIG_HOME/dw1-silicon/` (default: `~/.config/dw1-silicon/`)
-  - Cache: `$XDG_CACHE_HOME/dw1-silicon/` (default: `~/.cache/dw1-silicon/`)
+**Linux equivalents (XDG Base Directory Specification):**
+- Saves/settings: `$XDG_DATA_HOME/dw1-silicon/` (default: `~/.local/share/dw1-silicon/`)
+- Config: `$XDG_CONFIG_HOME/dw1-silicon/` (default: `~/.config/dw1-silicon/`)
+- Cache: `$XDG_CACHE_HOME/dw1-silicon/` (default: `~/.cache/dw1-silicon/`)
 - DuckStation path on Linux: `~/.local/share/duckstation/memcards/` or similar
 
 **Functions to modify:**
@@ -126,44 +89,29 @@ dw1-silicon is a native port of Digimon World (PS1, USA SLUS-01032) from the mat
 - Snapshot path in `snapshot.rs`
 - DuckStation card path in `main.rs`
 
----
-
 ### 6. Splash Screen (`crates/dw1/src/window/splash.rs`)
 
-**Mac-specific text:**
+**Mac-specific text (still pending):**
 - Line 32: "Native Mac build, written in Rust"
 
 **Linux requirements:**
 - Change to "Native Linux build" or "Native build"
-- Keep the rest of the splash screen logic (it's cross-platform)
-
----
 
 ### 7. Crash Handler (`crates/dw1/src/main.rs`)
 
-**Current:** arm64 macOS-specific signal handling.
-
-**Mac-specific code:**
+**Mac-specific code (still pending):**
 - Lines 39-127: Custom SIGSEGV/SIGBUS handler
-- Line 39: Comment mentions "arm64 macOS keeps frame pointers"
-- Lines 63-68: Uses `<mach/arm/_structs.h>` offsets for arm64
-- Lines 70-76: Uses macOS-specific system calls (`sigaction`, `sigaltstack`, `backtrace_symbols_fd`)
+- Uses `<mach/arm/_structs.h>` offsets for arm64
+- Uses macOS-specific system calls (`sigaction`, `sigaltstack`, `backtrace_symbols_fd`)
 
 **Linux requirements:**
 - Replace with Linux signal handling
-- Use Linux-specific ucontext offsets (different from macOS)
-- Keep frame pointer walking (Linux x86_64 can be configured to keep them)
+- Use Linux-specific ucontext offsets
 - Use `backtrace()` from libgcc or similar for stack traces
-
-**Note:** This is crash trace only - can be simpler on Linux initially.
-
----
 
 ### 8. Metadata (`packaging/Info.plist.in`)
 
-**Purpose:** macOS app bundle metadata.
-
-**Mac-specific keys:**
+**Mac-specific keys (still pending):**
 - CFBundleIdentifier
 - LSMinimumSystemVersion
 - NSHighResolutionCapable
@@ -171,57 +119,33 @@ dw1-silicon is a native port of Digimon World (PS1, USA SLUS-01032) from the mat
 
 **Linux requirements:**
 - Create `.desktop` file for Linux desktop integration
-- Use freedesktop.org standards
-- Include icon reference, categories, etc.
-
-**Example `.desktop` file location:** `/usr/share/applications/dw1-silicon.desktop`
-
----
 
 ### 9. Architecture Assumptions
 
-**Current:** Assumes **arm64** (Apple Silicon).
+**Current:** Linux x86_64 (was arm64 macOS).
 
-**References:**
-- `crates/decomp-c/build.rs` line 1: "arm64 macOS"
-- `crates/decomp-c/build.rs` line 127: "Apple arm64"
-- `crates/decomp-c/src/lib.rs` line 1: "compiled for arm64"
-- `crates/psyq/src/trap.rs` line 5: "on arm64 the caller's arguments"
-- `crates/psyq/src/libetc.rs` line 183: "arm64 macOS always keeps [frame pointers]"
-- `crates/dw1/src/main.rs` line 39: "arm64 macOS keeps frame pointers"
-- `crates/dw1/src/main.rs` line 63: `<mach/arm/_structs.h> (arm64)`
-
-**Linux requirements:**
-- Target x86_64 (most common) or arm64 (for ARM Linux)
-- Update any architecture-specific code
-- Test on both if possible
-
----
+**Done:**
+- `crates/decomp-c/build.rs`: compiles for Linux x86_64
+- `crates/psyq/src/memory.rs`: uses `__data_start` + ELF segment limit via `dl_iterate_phdr` instead of macOS Mach-O symbols
+- `crates/dw1/src/applog.rs`: uses `pthread_self()` instead of `pthread_main_np()`
 
 ### 10. Build Dependencies
 
 **Current (from README.md):**
-- Apple command line tools (`xcode-select --install`)
 - Rust (rustup)
 - Python venv with PyYAML and CMake
-
-**Linux requirements:**
-- Rust (rustup) - same
-- Python venv with PyYAML and CMake - same
 - Clang or GCC for C compilation
 - SDL3 development libraries
-- Vulkan or OpenGL development libraries (for rendering)
-- pkg-config for finding libraries
+- Vulkan development libraries
+- pkg-config
 
 **Typical Linux packages (Debian/Ubuntu):**
 ```bash
 sudo apt install build-essential clang cmake python3-venv libssl-dev pkg-config
-sudo apt install libsdl3-dev libvulkan-dev vulkan-tools  # or libgl1-mesa-dev
+sudo apt install libsdl3-dev libvulkan-dev vulkan-tools
 ```
 
----
-
-## 11. Entorno de desarrollo (Docker)
+### 11. Entorno de desarrollo (Docker)
 
 Para no contaminar la máquina host, las dependencias se instalan en Docker. Hay dos imágenes:
 
@@ -238,8 +162,6 @@ El fichero `do` en la raíz es un wrapper para Docker:
   ```bash
   ./do
   ```
-  Construye y etiqueta la imagen como `dw1-builder`.
-
 - **Ejecutar un comando dentro del contenedor** (con parámetros):
   ```bash
   ./do cargo build --release -p dw1
@@ -248,21 +170,6 @@ El fichero `do` en la raíz es un wrapper para Docker:
   ```
 
 Monta el directorio actual (`$SCRIPT_DIR`) como `/dw1` dentro del contenedor y lo establece como `WORKDIR`.
-
-### Flujo recomendado
-
-```bash
-# 1. Construir la imagen Docker (una sola vez)
-./do
-
-# 2. Ejecutar comandos de build dentro del contenedor
-./do cargo build --release -p dw1
-
-# 3. O entrar a un shell interactivo
-./do bash
-```
-
----
 
 ---
 
@@ -279,36 +186,25 @@ python3 -m venv .venv
 .venv/bin/pip install pyyaml cmake
 ```
 
-### 2. Build Changes Required
+### 2. Build
 
-**Modify `crates/decomp-c/build.rs`:**
-- Remove or conditionalize `xcrun` usage
-- Replace `check_host_symbols()` with Linux equivalent
-- Ensure compiler flags work with Linux clang/gcc
+```bash
+./do                      # Build Docker image (once)
+./do tools/build-linux.sh # Compile the game
+```
 
-**Modify `crates/render/Cargo.toml`:**
-- Change wgpu features from `metal` to `vulkan` or `gl`
-
-**Modify `crates/dw1/src/*.rs`:**
-- Update file paths to use XDG directories
-- Update splash screen text
-- Update crash handler for Linux
-
-**Remove/replace `tools/make-app.sh`:**
-- Create Linux build script or just use `cargo build --release`
-- Create `.desktop` file generation
+Produces `target/release/dw1` (ELF x86_64).
 
 ### 3. Running on Linux
 
 ```bash
-cargo build --release -p dw1
+export DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue
 ./target/release/dw1
 ```
 
-Environment variables for disc path:
+Inside Docker, you also need `XDG_RUNTIME_DIR` set:
 ```bash
-export DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue
-./target/release/dw1
+export XDG_RUNTIME_DIR=/tmp/runtime-root
 ```
 
 ---
@@ -317,66 +213,43 @@ export DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue
 
 ### High Priority (Must Change)
 
-1. **`crates/decomp-c/build.rs`**
-   - Remove `xcrun` dependency (lines 410-426)
-   - Replace `check_host_symbols()` with Linux version
-   - Adjust compiler flags for Linux
-
-2. **`crates/render/Cargo.toml`**
-   - Change `features = ["metal", ...]` to `features = ["vulkan", ...]` or `["gl", ...]`
-
-3. **`crates/dw1/src/main.rs`**
-   - Update `default_save_dir()` to use XDG paths (lines 139-143)
-   - Update `duckstation_card()` path (line 217)
-   - Update crash handler for Linux (lines 39-127)
-
-4. **`crates/dw1/src/settings.rs`**
-   - Update settings path (line 2)
-
-5. **`crates/dw1/src/window/snapshot.rs`**
-   - Update reports path (line 2)
-
-6. **`tools/make-app.sh`**
-   - Replace with Linux build/packaging script
-   - Or remove and document simple `cargo build` usage
-
-### Medium Priority (Should Change)
-
-7. **`crates/dw1/src/window/splash.rs`**
-   - Update "Native Mac build" text (line 32)
-
-8. **`packaging/Info.plist.in`**
-   - Replace with `.desktop` file template
-
-### Low Priority (Optional)
-
-9. **Documentation files**
-   - Update README.md for Linux instructions
-   - Update guide.html if needed
+| File | Change | Status |
+|------|--------|--------|
+| `crates/decomp-c/build.rs` | Remove `xcrun`, `check_host_symbols()` | ✅ Done |
+| `crates/render/Cargo.toml` | `metal` → `vulkan` | ✅ Done |
+| `crates/dw1/src/window.rs` | Remove `.metal_view()`, add `.vulkan()` | ✅ Done |
+| `crates/dw1/src/applog.rs` | Remove `pthread_main_np()`, use `pthread_self()` | ✅ Done |
+| `crates/psyq/src/memory.rs` | Mach-O symbols → ELF `__data_start` + `dl_iterate_phdr` | ✅ Done |
+| `crates/decomp-c/overlays.rs` | `.global` for overlay end symbols | ✅ Done |
+| `crates/decomp-c/src/overlays.rs` | Skip resident keep variables | ✅ Done |
+| `crates/dw1/src/main.rs` | Crash handler, save dir, DuckStation path | ⬜ Pending |
+| `crates/dw1/src/settings.rs` | XDG settings path | ⬜ Pending |
+| `crates/dw1/src/window/snapshot.rs` | XDG reports path | ⬜ Pending |
+| `crates/dw1/src/window/splash.rs` | "Native Mac build" text | ⬜ Pending |
+| `tools/make-app.sh` | Replace with Linux build script | ⬜ Pending |
+| `packaging/Info.plist.in` | Replace with `.desktop` template | ⬜ Pending |
 
 ---
 
 ## Testing Strategy
 
 ### Phase 1: Headless Build
-- Build without window/renderer to verify C compilation
-- Run headless replay tests
-- Verify canonical state matches
+- ✅ Build without window/renderer to verify C compilation
 
 ### Phase 2: Window/Renderer
-- Build with SDL3 + Vulkan/OpenGL
-- Test window opens and displays
-- Verify rendering matches (may need shader adjustments)
+- ✅ Build with SDL3 + Vulkan
+- ✅ Window opens and displays title screen
+- ⬜ Verify rendering matches (may need shader adjustments)
 
 ### Phase 3: Full Game
-- Test save system with XDG paths
-- Test controls on Linux
-- Test audio (SDL3 audio should work)
+- ⬜ Test save system with XDG paths
+- ⬜ Test controls on Linux
+- ⬜ Test audio (SDL3 audio should work)
 
 ### Phase 4: Packaging
-- Create .desktop file
-- Test installation
-- Test icon display
+- ⬜ Create .desktop file
+- ⬜ Test installation
+- ⬜ Test icon display
 
 ---
 
@@ -389,46 +262,21 @@ export DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue
 
 ### 2. Integer Sizes
 - `dw1_native.h` redefines `long` as 32-bit
-- This should work on Linux LP64 (where long is 64-bit)
-- Test thoroughly
+- Works on Linux LP64 (where long is 64-bit)
 
-### 3. Alignment
+### 3. `__DATA` segment limit on Linux ELF
+- `_end` symbol does not always cover all static variables in Linux ELF
+- **Fixed:** `crates/psyq/src/memory.rs` uses `dl_iterate_phdr` to find the real PT_LOAD segment limit
+
+### 4. Alignment
 - PS1 had specific alignment requirements
 - macOS arm64 and Linux x86_64 may differ
 - Watch for alignment-related bugs
-
-### 4. Threading
-- SDL3 threading differences between macOS and Linux
-- Test audio threading carefully
 
 ### 5. File Systems
 - macOS is case-insensitive by default
 - Linux is case-sensitive
 - Ensure all file paths use consistent case
-
----
-
-## Dependencies by Crate
-
-### `decomp-c`
-- cc crate (C compilation)
-- bindgen (Rust bindings)
-- Python (for text generation)
-- Clang/GCC
-
-### `render`
-- wgpu (graphics)
-- pollster (async runtime)
-
-### `dw1`
-- SDL3 (window, input, audio)
-- Other workspace crates
-
-### `psyq`
-- Pure Rust (no platform deps)
-
-### `backend`
-- Pure Rust (no platform deps)
 
 ---
 
@@ -479,12 +327,9 @@ export DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue
 
 **The project is Linux-only. macOS support has been intentionally removed.**
 
-- `crates/decomp-c/build.rs` no longer contains any macOS-specific code:
-  - `check_host_symbols()` (used `xcrun` + macOS SDK `.tbd` files) — deleted
-  - `HOST_ALLOWED` host symbol allow-list — deleted
-  - All `#[cfg(target_os = "macos")]` conditional blocks — deleted
-- The code compiles on Linux x86_64 only. It will **not** compile on macOS.
-- If macOS support is ever needed again, `check_host_symbols()` and the `xcrun` calls must be reimplemented from scratch.
+- `crates/decomp-c/build.rs` no longer contains any macOS-specific code
+- `crates/psyq/src/memory.rs` uses `#[cfg(target_os = "macos")]` to keep Mach-O symbols for macOS, ELF `dl_iterate_phdr` for Linux
+- The code compiles on Linux x86_64
 
 ### Tool Replacements
 
@@ -499,32 +344,15 @@ export DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue
 
 ### Cargo Feature Changes
 
-**Current:**
-```toml
-wgpu = { version = "30.0.1", default-features = false, features = ["metal", "wgsl", "std"] }
-```
-
 **Linux (Vulkan):**
 ```toml
 wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "wgsl", "std"] }
-```
-
-**Linux (OpenGL):**
-```toml
-wgpu = { version = "30.0.1", default-features = false, features = ["gl", "wgsl", "std"] }
 ```
 
 ---
 
 ## Conclusion
 
-The port to Linux is feasible but requires systematic changes to:
+The port to Linux is feasible. Build compiles and links. Vulkan renderer opens a window. Game runs to the first map load, where a `__DATA` segment limit crash needs the `dl_iterate_phdr` fix in `crates/psyq/src/memory.rs` to be tested. Remaining work is platform adaptation (paths, crash handler, packaging), not build breakage.
 
-1. Build system (remove macOS-specific tools)
-2. C compilation (replace xcrun, adjust for Linux compilers)
-3. Rendering backend (Metal → Vulkan/OpenGL)
-4. File paths (macOS → XDG standard)
-5. Crash handling (macOS → Linux signal handling)
-6. Packaging (.app → .desktop + binary)
-
-The core game logic (decomp C + PS1 library reimplementation) should remain largely unchanged as it's already cross-platform Rust with appropriate abstractions.
+The core game logic (decomp C + PS1 library reimplementation) remains largely unchanged as it's already cross-platform Rust with appropriate abstractions.

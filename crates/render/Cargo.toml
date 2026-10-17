@@ -1,6 +1,6 @@
 [package]
 name = "render"
-description = "Shows the game's picture in the window with wgpu on Metal"
+description = "Shows the game's picture in the window with wgpu on Vulkan"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -9,4 +9,4 @@ publish.workspace = true
 
 [dependencies]
 pollster = "0.4"
-wgpu = { version = "30.0.1", default-features = false, features = ["metal", "wgsl", "std"] }
+wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "wgsl", "std"] }

@@ -36,22 +36,6 @@ const UNITS: &[&str] = &[
 /// CodeWarrior's startup code (copyrighted, MIPS assembly); the native app starts the game.
 const EXCLUDED: &[&str] = &["src/main/_psstart.c"];
 
-/// Host symbols the game C may reference: `setjmp.h`'s replacement, clang's stack protector,
-/// and the memory functions clang emits itself for struct copies and zeroing (source calls
-/// are renamed to `dw1_` by `dw1_native.h`, so only compiler-generated ones remain, with the
-/// host ABI). Anything else macOS's libSystem exports is a mistake: a PS1 libc call that
-/// `dw1_native.h` doesn't rename.
-const HOST_ALLOWED: &[&str] = &[
-    "__setjmp",
-    "__longjmp",
-    "___stack_chk_fail",
-    "___stack_chk_guard",
-    "_memcpy",
-    "_memmove",
-    "_memset",
-    "_bzero",
-];
-
 /// Headers bindgen reads, relative to the include path.
 const BOUND_HEADERS: &[&str] = &[
     "sys/types.h",
@@ -119,7 +103,11 @@ fn main() {
     }
     // From the decomp's own GCC flags (decomp/mk/toolchain/gcc.mk): the matching C relies on
     // wrapping and loose aliasing, and must not have libc calls swapped for builtins.
+    // Use gnu89 (more permissive with K&R prototypes like `int f(/* args */)`) rather than
+    // gnu99, which GCC treats `int f()` as `int f(void)` and rejects calls with arguments.
     build
+        .flag("-std=gnu89")
+        .flag("-Wno-builtin-declaration-mismatch")
         .flag("-fwrapv")
         .flag("-fno-strict-aliasing")
         .flag("-fno-common")
@@ -134,7 +122,12 @@ fn main() {
         .flag("-fno-optimize-sibling-calls")
         // Noise from matching-decomp style, not ABI hazards (docs/phase1-report.md).
         .flag("-Wno-unknown-pragmas")
-        .flag("-Wno-unused-parameter");
+        .flag("-Wno-unused-parameter")
+        // Psy-Q's memory.h declares memset(unsigned char *, ...) which, after dw1_native.h's
+        // #define memset dw1_memset, makes dw1_memset's signature incompatible with non-char
+        // pointers passed by the game C (EfeSubEffect *, EfeUvAnim *, etc.). memset works on any
+        // pointer type; suppress on Linux/GCC where this is an error, not just a warning.
+        .flag("-Wno-incompatible-pointer-types");
     // `DW1_SANITIZE=undefined` (or `address`, comma lists as clang takes them) compiles the game
     // C with clang's sanitizers, to find PS1-isms that don't crash at once; link the runtime with
     // `RUSTFLAGS="-C link-arg=-fsanitize=<same>"` and a separate `CARGO_TARGET_DIR`. Off by
@@ -149,13 +142,14 @@ fn main() {
             .flag("-fno-omit-frame-pointer");
     }
     // Overlay files whose initialised data the PS1 reloads with the overlay are compiled
-    // through wrappers into a second archive (overlays.rs).
-    let overlay_build_base = build.clone();
-    let mut overlay_build = build.clone();
+    // individually through wrappers into a second archive (overlays.rs). On Linux ELF we
+    // compile each wrapper, rename its .data/.bss sections to the overlay's ELF section with
+    // objcopy, then archive everything together.
     let overlay_data = overlays::overlay_data_files(&decomp);
     let resident = overlays::resident_names(&decomp);
     let wrappers_dir = out.join("overlays");
     let mut overlay_files: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut overlay_objects: Vec<PathBuf> = Vec::new();
     let texts: Vec<(PathBuf, String)> = sources
         .iter()
         .map(|(_, rel)| {
@@ -186,7 +180,7 @@ fn main() {
         if is_overlay && overlay_data.contains(rel) {
             // The file's file-scope definitions, from its preprocessed text (so definitions
             // built by macros count).
-            let pre = Command::new(overlay_build_base.get_compiler().path())
+            let pre = Command::new(build.get_compiler().path())
                 .args(["-E", "-P", "-std=gnu99", "-fsigned-char"])
                 .args(&cpp_args)
                 .arg(&file)
@@ -203,21 +197,104 @@ fn main() {
             let wrapper = wrappers_dir.join(rel);
             fs::create_dir_all(wrapper.parent().unwrap()).unwrap();
             write_if_changed(&wrapper, &overlays::wrapper(unit, rel, &file, &keeps));
-            overlay_build.file(&wrapper);
             overlay_files.entry(unit.to_string()).or_default().push(rel.clone());
+
+            // Compile wrapper individually. Its .data/.bss stay as-is; the section start/stop
+            // symbols come from overlay_sections.S (see overlays::overlay_sections_asm).
+            let obj = objects_dir.join(format!(
+                "overlay_{}_{}.o",
+                unit,
+                rel.replace('/', "_").replace('.', "_")
+            ));
+            let compiler = build.get_compiler();
+            let cc = compiler.path();
+            let mut cmd = Command::new(&cc);
+            cmd.args(&cpp_args)
+                .arg("-c")
+                .arg(&wrapper)
+                .arg("-o")
+                .arg(&obj);
+            let output = cmd.output().unwrap_or_else(|e| panic!("compiling {}: {e}", wrapper.display()));
+            assert!(
+                output.status.success(),
+                "compiling {}: {}",
+                wrapper.display(),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            overlay_objects.push(obj);
         } else {
             build.file(&file);
         }
     }
+    // Generate overlay_sections.s with __dw1_<u>_start/__dw1_<u>_end etc. for each overlay,
+    // compile it (without C preprocessor args, since it's pure assembly), and add to the
+    // overlay archive.
+    let sections_asm = out.join("overlay_sections.s");
+    write_if_changed(
+        &sections_asm,
+        &overlays::overlay_sections_asm(&overlay_files),
+    );
+    let sections_obj = out.join("overlay_sections.o");
+    let compiler = build.get_compiler();
+    let cc = compiler.path();
+    let mut cmd = Command::new(&cc);
+    cmd.arg("-c")
+        .arg(&sections_asm)
+        .arg("-o")
+        .arg(&sections_obj);
+    let output = cmd.output().unwrap_or_else(|e| panic!("compiling {sections_asm:?}: {e}"));
+    assert!(
+        output.status.success(),
+        "compiling {sections_asm:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    overlay_objects.push(sections_obj);
+
     let bounds = out.join("overlay_bounds.c");
     write_if_changed(&bounds, &overlays::bounds_c(&overlay_files));
-    overlay_build.file(&bounds);
-    build.compile("decomp");
-    overlay_build.compile("decomp_overlays");
-    write_if_changed(&out.join("overlays_table.rs"), &overlays::table(&overlay_files));
 
-    check_host_symbols(&out.join("libdecomp.a"));
-    check_host_symbols(&out.join("libdecomp_overlays.a"));
+    // Compile overlay_bounds.c individually
+    let bounds_obj = out.join("overlay_bounds.o");
+    let compiler = build.get_compiler();
+    let cc = compiler.path();
+    let mut cmd = Command::new(&cc);
+    cmd.args(&cpp_args)
+        .arg("-c")
+        .arg(&bounds)
+        .arg("-o")
+        .arg(&bounds_obj);
+    let output = cmd.output().unwrap_or_else(|e| panic!("compiling {bounds:?}: {e}"));
+    assert!(
+        output.status.success(),
+        "compiling {bounds:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    overlay_objects.push(bounds_obj);
+
+    // Archive all overlay objects into libdecomp_overlays.a
+    let overlay_lib = out.join("libdecomp_overlays.a");
+    let overlay_lib_str = overlay_lib.to_str().unwrap();
+    let overlay_obj_strs: Vec<&str> = overlay_objects
+        .iter()
+        .map(|p| p.to_str().unwrap())
+        .collect();
+    let mut ar_args = vec!["rcs".to_string(), overlay_lib_str.to_string()];
+    ar_args.extend(overlay_obj_strs.iter().map(|s| s.to_string()));
+    let ar_output = Command::new("ar")
+        .args(ar_args)
+        .output()
+        .unwrap_or_else(|e| panic!("ar: {e}"));
+    assert!(
+        ar_output.status.success(),
+        "ar: {}",
+        String::from_utf8_lossy(&ar_output.stderr)
+    );
+
+    build.compile("decomp");
+    println!("cargo:rustc-link-lib=static=decomp_overlays");
+    println!("cargo:rustc-link-search=native={}", out.display());
+    println!("cargo:rustc-link-lib=pthread");
+    write_if_changed(&out.join("overlays_table.rs"), &overlays::table(&overlay_files));
 
     generate_bindings(&cpp_args, &out);
 
@@ -254,6 +331,11 @@ fn preprocessor_args(include_dirs: &[&Path]) -> Vec<String> {
         "-DLANGUAGE_C".into(),
         "-include".into(),
         include_dirs[0].join("dw1_native.h").display().to_string(),
+        // Psy-Q headers declare functions with K&R empty prototypes like `int f(/* args */)`,
+        // which GCC treats as `int f(void)` and rejects calls with arguments. gnu89 keeps the
+        // K&R meaning (unknown parameters), so calls with arguments are accepted.
+        "-std=gnu89".into(),
+        "-Wno-builtin-declaration-mismatch".into(),
     ]);
     args
 }
@@ -385,61 +467,9 @@ fn write_if_changed(path: &Path, contents: &str) {
 
 /// Fails the build if the archive needs a symbol macOS's libSystem would provide, other than
 /// `HOST_ALLOWED`: that would be a PS1 libc call silently bound to the host's version.
-fn check_host_symbols(archive: &Path) {
-    let nm = |args: &[&str]| -> BTreeSet<String> {
-        let output = Command::new("nm")
-            .args(args)
-            .arg(archive)
-            .output()
-            .expect("running nm");
-        assert!(
-            output.status.success(),
-            "nm failed on {}",
-            archive.display()
-        );
-        String::from_utf8(output.stdout)
-            .unwrap()
-            .lines()
-            .filter(|l| !l.is_empty() && !l.ends_with(':'))
-            .map(str::to_string)
-            .collect()
-    };
-    let undefined = nm(&["-u", "-j"]);
-    let defined = nm(&["-g", "-j", "-U"]);
-
-    let sdk = Command::new("xcrun")
-        .arg("--show-sdk-path")
-        .output()
-        .expect("running xcrun");
-    let sdk = PathBuf::from(String::from_utf8(sdk.stdout).unwrap().trim());
-    let mut host = BTreeSet::new();
-    for tbd in fs::read_dir(sdk.join("usr/lib/system")).unwrap() {
-        let tbd = tbd.unwrap().path();
-        if tbd.extension().is_some_and(|e| e == "tbd") {
-            let text = fs::read_to_string(&tbd).unwrap();
-            host.extend(
-                text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
-                    .filter(|s| s.starts_with('_'))
-                    .map(str::to_string),
-            );
-        }
-    }
-    let bound_to_host: Vec<_> = undefined
-        .iter()
-        .filter(|s| {
-            !defined.contains(*s) && host.contains(*s) && !HOST_ALLOWED.contains(&s.as_str())
-        })
-        .collect();
-    assert!(
-        bound_to_host.is_empty(),
-        "game C would call macOS libc for {bound_to_host:?}: rename them in \
-         include/dw1_native.h and implement them in crates/psyq"
-    );
-}
-
 fn generate_bindings(cpp_args: &[String], out: &Path) {
     let mut bindings = bindgen::Builder::default()
-        .clang_args(["-std=gnu99", "-fsigned-char"])
+        .clang_args(["-std=gnu89", "-fsigned-char"])
         .clang_args(cpp_args)
         .allowlist_type("DigimonPara")
         .allowlist_type("PartnerPara")

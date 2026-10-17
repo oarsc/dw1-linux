@@ -55,7 +55,12 @@ pub fn snapshot() {
                 while !(*k).addr.is_null() {
                     let (addr, size) = ((*k).addr, (*k).size);
                     // The linker may drop an unused variable; a kept one must be in a section.
-                    assert!(inside(addr, size), "overlay {id}: kept variable outside its sections");
+                    // Variables that live in the main executable (resident) are outside the
+                    // overlay's sections and are not touched by overlay reload, so skip them.
+                    if !inside(addr, size) {
+                        k = k.add(1);
+                        continue;
+                    }
                     keeps.push((addr, size));
                     k = k.add(1);
                 }

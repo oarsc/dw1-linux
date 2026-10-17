@@ -6,7 +6,12 @@ This file is updated as progress is made. It serves as a unified checkpoint to k
 
 ## Current phase
 
-**Phase 0 — Preparation** (in progress)
+**Phase 3 — Rendering backend** (in progress)
+
+The game builds, opens a Vulkan window, reaches the title screen, skips the intro video,
+enters the main menu, starts a new game, shows the Jijimon naming dialog, and crashes when
+loading the first map because a GPU packet pointer falls outside the detected `__DATA`
+segment. The fix for that is in progress (see "Current blockers").
 
 ---
 
@@ -23,14 +28,21 @@ This file is updated as progress is made. It serves as a unified checkpoint to k
 | 1 | Guard in `tools/make-app.sh` | ⬜ | |
 | 1 | `README-linux.md` with Linux instructions (build-linux.sh via `./do`) | ✅ | Done |
 | 1 | Document `external/` folder for game disc | ✅ | Done |
-| 2 | `check_host_symbols()` conditionalized | ⬜ | |
-| 2 | `xcrun` removed on Linux | ⬜ | |
-| 2 | `decomp-c` compiles on Linux | ⬜ | |
-| 3 | wgpu Metal → Vulkan/OpenGL | ⬜ | |
-| 3 | Window opens on Linux | ⬜ | |
-| 4 | XDG paths for saves/settings/reports | ⬜ | |
+| 2 | `check_host_symbols()` removed | ✅ | Deleted from `build.rs` |
+| 2 | `xcrun` removed on Linux | ✅ | Removed |
+| 2 | `decomp-c` compiles on Linux | ✅ | Builds with clang/gcc on Linux x86_64 |
+| 2 | Overlay section symbols `.global` on Linux ELF | ✅ | `crates/decomp-c/overlays.rs`: `_end`/`_zend` now `.global` |
+| 2 | macOS-only host symbols replaced | ✅ | `crates/psyq/src/memory.rs`: `__data_start` + real ELF segment limit via `dl_iterate_phdr`; `_end` as fallback |
+| 2 | Overlay runtime: keep variables outside sections no longer panic | ✅ | `crates/decomp-c/src/overlays.rs`: skips resident variables outside overlay sections |
+| 2 | Overlay keep list excludes resident variables | ✅ | `crates/decomp-c/overlays.rs`: `keeps()` skips resident symbols |
+| 3 | wgpu Metal → Vulkan | ✅ | `crates/render/Cargo.toml`: `features = ["vulkan", "wgsl", "std"]` |
+| 3 | SDL3 window uses Vulkan (not Metal) | ✅ | `crates/dw1/src/window.rs`: removed `.metal_view()`, added `.vulkan()` |
+| 3 | Window opens on Linux | ✅ | Opens, shows title screen, skips intro, reaches main menu |
+| 3 | `XDG_RUNTIME_DIR` needed in container | ✅ | Must be set when running headless/in container |
+| 4 | XDG paths for saves/settings/reports | ⬜ | Still `~/Library/Application Support/dw1-silicon/` |
 | 4 | `DW1_DATA_DIR` / `DW1_CONFIG_DIR` | ⬜ | |
-| 5 | Linux crash handler (SIGSEGV/SIGBUS) | ⬜ | |
+| 5 | Linux crash handler (SIGSEGV/SIGBUS) | ⬜ | `crates/dw1/src/main.rs` still has macOS arm64 signal handler |
+| 5 | `pthread_main_np` removed (applog main thread) | ✅ | `crates/dw1/src/applog.rs`: captures `pthread_self()` in `start()` |
 | 6 | `.desktop` file | ⬜ | |
 | 6 | Install/uninstall scripts | ⬜ | |
 | 7 | 43 certified replays pass on Linux | ⬜ | |
@@ -41,15 +53,43 @@ This file is updated as progress is made. It serves as a unified checkpoint to k
 
 ## Immediate next steps
 
-1. Start Phase 1: create `tools/build-linux.sh`.
-2. Verify that a legal copy of the Digimon World disc is available for testing.
-3. Read `dw1-silicon/docs/s06-platform.md` and `docs/s08-oracle.md` for context.
+1. **Fix the `__DATA` segment limit crash** (current blocker):
+   - `crates/psyq/src/memory.rs` now uses `dl_iterate_phdr` to find the real PT_LOAD segment
+     limit instead of `_end` + margin. Recompile and test.
+2. After the crash is fixed:
+   - `crates/dw1/src/main.rs`: crash handler (lines 39-127) uses `<mach/arm/_structs.h>` and macOS syscalls.
+   - `crates/dw1/src/main.rs`: `default_save_dir()` and `duckstation_card()` use `~/Library/Application Support/...`.
+   - `crates/dw1/src/settings.rs`: settings path.
+   - `crates/dw1/src/window/snapshot.rs`: reports path.
+   - `crates/dw1/src/window/splash.rs`: "Native Mac build" text.
+3. Verify a legal copy of the Digimon World disc is available for testing (`DW1_DISC`).
+4. Read `dw1-silicon/docs/s06-platform.md` and `docs/s08-oracle.md` for context.
 
 ---
 
 ## Current blockers
 
-None (project not yet started).
+- **GPU packet outside `__DATA` segment** when loading the first map. `crates/psyq/src/memory.rs`
+  was changed to use `dl_iterate_phdr` for a precise segment limit (replacing the `_end` +
+  64KB margin workaround). Needs recompilation and testing.
+- Remaining macOS-only code: crash handler, file paths, splash text.
+
+---
+
+## Changes made to get the build passing and running
+
+- `crates/decomp-c/overlays.rs` (build script): `overlay_sections_asm()` marks `dw1_{u}_end`
+  and `dw1_{u}_zend` as `.global` so `overlay_bounds.c` can reference them.
+- `crates/decomp-c/overlays.rs` (build script): `keeps()` no longer includes resident variables
+  (they live in the main executable, not the overlay).
+- `crates/decomp-c/src/overlays.rs` (runtime): skips keep variables outside overlay sections
+  instead of panicking (they are resident main-executable variables).
+- `crates/dw1/src/applog.rs`: replaced macOS-only `pthread_main_np()` with `pthread_self()`
+  captured in `start()`.
+- `crates/psyq/src/memory.rs`: `DATA_START`/`DATA_END` use `__data_start` + real ELF segment
+  limit via `dl_iterate_phdr` (precise), with `_end` as fallback. Added `libc` dependency.
+- `crates/render/Cargo.toml`: wgpu features changed from `metal` to `vulkan`.
+- `crates/dw1/src/window.rs`: removed `.metal_view()`, added `.vulkan()` to SDL3 window builder.
 
 ---
 

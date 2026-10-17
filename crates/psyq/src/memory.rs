@@ -48,11 +48,11 @@ pub fn ps1_ram_ptr(addr: u32) -> *mut u8 {
 // docs/phase2-plan.md). Linking anything outside it stops the program.
 
 unsafe extern "C" {
-    // ld64 defines these for every segment of the image.
-    #[link_name = "\u{1}segment$start$__DATA"]
-    static DATA_START: u8;
-    #[link_name = "\u{1}segment$end$__DATA"]
-    static DATA_END: u8;
+     // ELF defines these for every segment of the image.
+     #[link_name = "__data_start"]
+     static DATA_START: u8;
+     #[link_name = "_end"]
+     static DATA_END: u8;
 }
 
 /// The end-of-list link.

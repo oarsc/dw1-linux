@@ -97,22 +97,12 @@ int32_t dw1_text_width(char *str);
 #define srand dw1_bios_srand
 
 /*
- * The rest of the PS1 libc the game calls (crates/psyq/src/libc.rs), renamed so it can't bind
- * to macOS's: Psy-Q's prototypes take 32-bit sizes, and the BIOS versions refuse NULLs.
+ * On Linux, the game calls libc functions directly (memcpy, exit, printf, ...); GLIBC
+ * provides them. Only PS1-specific entry points (rand, main) and the DW1_* helpers are
+ * renamed here.
  */
-#define abs dw1_abs
-#define bzero dw1_bzero
-#define exit dw1_exit
-#define memcpy dw1_memcpy
-#define memset dw1_memset
-#define printf dw1_printf
-#define sprintf dw1_sprintf
-#define strcat dw1_strcat
-#define strcmp dw1_strcmp
-#define strcpy dw1_strcpy
-#define strlen dw1_strlen
-#define strncpy dw1_strncpy
-#define strrchr dw1_strrchr
+#define rand dw1_bios_rand
+#define srand dw1_bios_srand
 
 /* The game's main() (main.c), which the app calls; Rust's binary owns the C `main`. */
 #define main dw1_game_main

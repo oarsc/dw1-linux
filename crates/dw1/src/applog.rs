@@ -8,6 +8,7 @@
 //! is a run that ended without exiting (an abort, a signal), says so, and only then removes the
 //! marker. Headless runs only log.
 
+use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,6 +24,8 @@ static LOG_FILE: OnceLock<std::fs::File> = OnceLock::new();
 static RECOVERED: std::sync::Mutex<Option<(std::fs::File, PathBuf)>> = std::sync::Mutex::new(None);
 /// The window build: stops are shown, and the run has a marker.
 static INTERACTIVE: AtomicBool = AtomicBool::new(false);
+/// The main thread's ID, captured when `start()` runs (Linux: `pthread_self()`).
+static MAIN_THREAD: OnceLock<c_ulong> = OnceLock::new();
 
 /// Running from a `.app` bundle.
 pub fn bundled() -> bool {
@@ -42,6 +45,13 @@ pub fn start(interactive: bool) -> Option<PathBuf> {
     if !wanted {
         return None;
     }
+    // Remember which thread we started on: `on_main_thread()` compares against it.
+    // `pthread_self()` has no Linux equivalent of macOS's `pthread_main_np()`, so we
+    // capture the main thread's ID here (start() is called from main()).
+    unsafe extern "C" {
+        fn pthread_self() -> c_ulong;
+    }
+    let _ = MAIN_THREAD.set(unsafe { pthread_self() });
     // The message boxes first: they matter most when no log can be written.
     if interactive {
         INTERACTIVE.store(true, Ordering::Relaxed);
@@ -231,14 +241,18 @@ fn log_note() -> String {
     }
 }
 
-/// Whether this is the main thread: macOS shows windows (a message box too) only from there.
+/// Whether this is the main thread: shows windows (a message box too) only from there.
 /// A stop elsewhere is in the log, and the next start reports it.
+/// On Linux there is no `pthread_main_np()`: we compare against the ID captured in `start()`.
 fn on_main_thread() -> bool {
+    let Some(main) = MAIN_THREAD.get() else {
+        return false;
+    };
     unsafe extern "C" {
-        fn pthread_main_np() -> i32;
+        fn pthread_self() -> c_ulong;
     }
     // SAFETY: no arguments, no state.
-    unsafe { pthread_main_np() != 0 }
+    unsafe { pthread_self() == *main }
 }
 
 /// The message box for a stop (when logging: an app run, on the main thread), then back to

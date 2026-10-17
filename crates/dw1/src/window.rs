@@ -198,7 +198,7 @@ impl PadState {
 }
 
 pub struct Window {
-    /// Declared before `window`, so it goes first (it draws into the window's Metal layer).
+    /// Declared before `window`, so it goes first (it draws into the window's surface).
     renderer: Renderer,
     window: sdl3::video::Window,
     /// The settings in use, and as kept in the file (without one run's environment overrides).
@@ -426,7 +426,7 @@ impl Window {
             .window("Digimon World (dw1-silicon)", 960, 720)
             .resizable()
             .high_pixel_density()
-            .metal_view()
+            .vulkan()
             .build()
             .map_err(|e| e.to_string())?;
         let (pw, ph) = window.size_in_pixels();

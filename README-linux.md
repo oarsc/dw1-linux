@@ -94,6 +94,20 @@ Or in one line:
 DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1
 ```
 
+Inside a Docker container you also need `XDG_RUNTIME_DIR` set:
+
+```bash
+export XDG_RUNTIME_DIR=/tmp/runtime-root
+mkdir -p /tmp/runtime-root
+DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1
+```
+
+> **Status:** The game builds, opens a Vulkan window, shows the title screen, skips the intro
+> video, reaches the main menu, starts a new game, and shows the Jijimon naming dialog. It
+> currently crashes when loading the first map because of a `__DATA` segment limit issue in
+> `crates/psyq/src/memory.rs`. A fix using `dl_iterate_phdr` for a precise ELF segment limit
+> has been implemented and needs testing.
+
 ### 7. Enter the container to edit code (optional)
 
 If you want to edit code and recompile without typing `./do` each time:

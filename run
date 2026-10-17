@@ -1,0 +1,5 @@
+#!/bin/sh
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+"$SCRIPT_DIR/dtb" env DW1_DISC="/dw1/external/Digimon World (USA).cue" target/release/dw1                                                                                   ✘ ABRT 15:58:53
