@@ -6,12 +6,11 @@ This file is updated as progress is made. It serves as a unified checkpoint to k
 
 ## Current phase
 
-**Phase 3 — Rendering backend** (in progress)
+**Phase 3 — Rendering backend** (done)
 
 The game builds, opens a Vulkan window, reaches the title screen, skips the intro video,
-enters the main menu, starts a new game, shows the Jijimon naming dialog, and crashes when
-loading the first map because a GPU packet pointer falls outside the detected `__DATA`
-segment. The fix for that is in progress (see "Current blockers").
+enters the main menu, starts a new game, shows the Jijimon naming dialog, and loads the
+first map successfully. The `__DATA` segment limit crash on first map load is fixed.
 
 ---
 
@@ -39,6 +38,7 @@ segment. The fix for that is in progress (see "Current blockers").
 | 3 | SDL3 window uses Vulkan (not Metal) | ✅ | `crates/dw1/src/window.rs`: removed `.metal_view()`, added `.vulkan()` |
 | 3 | Window opens on Linux | ✅ | Opens, shows title screen, skips intro, reaches main menu |
 | 3 | `XDG_RUNTIME_DIR` needed in container | ✅ | Must be set when running headless/in container |
+| 3 | `dl_iterate_phdr` for precise ELF `__DATA` segment limit | ✅ | `crates/psyq/src/memory.rs`: uses `dl_iterate_phdr` instead of `_end` + margin |
 | 4 | XDG paths for saves/settings/reports | ⬜ | Still `~/Library/Application Support/dw1-silicon/` |
 | 4 | `DW1_DATA_DIR` / `DW1_CONFIG_DIR` | ⬜ | |
 | 5 | Linux crash handler (SIGSEGV/SIGBUS) | ⬜ | `crates/dw1/src/main.rs` still has macOS arm64 signal handler |
@@ -53,10 +53,12 @@ segment. The fix for that is in progress (see "Current blockers").
 
 ## Immediate next steps
 
-1. **Fix the `__DATA` segment limit crash** (current blocker):
-   - `crates/psyq/src/memory.rs` now uses `dl_iterate_phdr` to find the real PT_LOAD segment
-     limit instead of `_end` + margin. Recompile and test.
-2. After the crash is fixed:
+1. **The game now runs** — recompile and test:
+   ```bash
+   ./dtb tools/build-linux.sh
+   ./dtb env DW1_DISC="/dw1/external/Digimon World (USA).cue" target/release/dw1
+   ```
+2. Remaining macOS-only pieces:
    - `crates/dw1/src/main.rs`: crash handler (lines 39-127) uses `<mach/arm/_structs.h>` and macOS syscalls.
    - `crates/dw1/src/main.rs`: `default_save_dir()` and `duckstation_card()` use `~/Library/Application Support/...`.
    - `crates/dw1/src/settings.rs`: settings path.
@@ -69,10 +71,7 @@ segment. The fix for that is in progress (see "Current blockers").
 
 ## Current blockers
 
-- **GPU packet outside `__DATA` segment** when loading the first map. `crates/psyq/src/memory.rs`
-  was changed to use `dl_iterate_phdr` for a precise segment limit (replacing the `_end` +
-  64KB margin workaround). Needs recompilation and testing.
-- Remaining macOS-only code: crash handler, file paths, splash text.
+None — the game builds, opens a Vulkan window, and runs to the first map. Remaining work is platform adaptation (paths, crash handler, packaging), not build breakage.
 
 ---
 
@@ -80,14 +79,14 @@ segment. The fix for that is in progress (see "Current blockers").
 
 - `crates/decomp-c/overlays.rs` (build script): `overlay_sections_asm()` marks `dw1_{u}_end`
   and `dw1_{u}_zend` as `.global` so `overlay_bounds.c` can reference them.
-- `crates/decomp-c/overlays.rs` (build script): `keeps()` no longer includes resident variables
+- `crates/decomp-c/overlays.rs` (build script): `keens()` no longer includes resident variables
   (they live in the main executable, not the overlay).
 - `crates/decomp-c/src/overlays.rs` (runtime): skips keep variables outside overlay sections
   instead of panicking (they are resident main-executable variables).
 - `crates/dw1/src/applog.rs`: replaced macOS-only `pthread_main_np()` with `pthread_self()`
   captured in `start()`.
 - `crates/psyq/src/memory.rs`: `DATA_START`/`DATA_END` use `__data_start` + real ELF segment
-  limit via `dl_iterate_phdr` (precise), with `_end` as fallback. Added `libc` dependency.
+  limit via `dl_iterate_phdr` (precise, no workaround margin), with `_end` as fallback.
 - `crates/render/Cargo.toml`: wgpu features changed from `metal` to `vulkan`.
 - `crates/dw1/src/window.rs`: removed `.metal_view()`, added `.vulkan()` to SDL3 window builder.
 

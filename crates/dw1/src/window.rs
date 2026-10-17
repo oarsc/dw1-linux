@@ -87,6 +87,13 @@ impl Pacer {
         }
         due.saturating_sub(now_ns)
     }
+
+    /// Whether the field after the last one taken is due at `now_ns`. Used while the game
+    /// polls `PadRead` without `VSync` (the pause menu): the fields it isn't waiting for still
+    /// pass, as the PS1's VBlank interrupt keeps firing.
+    fn field_due(&self, now_ns: u64) -> bool {
+        now_ns >= self.due_ns(self.fields + 1)
+    }
 }
 
 // libetc's PadRead bits (libetc.h).
@@ -226,6 +233,12 @@ pub struct Window {
     /// Pad bits still held from before the game took over (the splash's skip press): not
     /// reported until released.
     held_over: u32,
+    /// Whether the Start button was pressed on the previous `pad()` call: used to detect
+    /// pause/unpause transitions (the game polls PadRead without VSync while paused).
+    start_was_pressed: bool,
+    /// Whether a pause/unpause transition happened and we need to present the current frame
+    /// immediately (the game isn't calling VSync while paused).
+    pause_present_needed: bool,
     /// The sound output (kept open; libspu pushes into it). None if there's no audio device.
     _audio: Option<AudioStreamOwner>,
     /// The title says a save failed.
@@ -459,6 +472,8 @@ impl Window {
             last_size: None,
             log: std::env::var_os("DW1_WINDOW_LOG").is_some(),
             held_over: 0,
+            start_was_pressed: false,
+            pause_present_needed: false,
             _audio: audio,
             save_failed_shown: false,
             refresh_ns: 0,
@@ -745,6 +760,10 @@ impl Window {
         if wait == 0 {
             return;
         }
+        // Process SDL events while we wait: the game may be paused (menu on screen) and not
+        // call VSync again until the user presses a key, but we still need to drain the event
+        // queue so the window stays responsive (pause/unpause, close, etc.).
+        self.events();
         // Sleep most of it, spin the last millisecond: the OS sleep overshoots.
         let end = self.t0 + Duration::from_nanos(now + wait);
         let spin = Duration::from_millis(1);
@@ -755,7 +774,46 @@ impl Window {
             std::thread::sleep(coarse);
         }
         while Instant::now() < end {
+            // Keep draining SDL events during the spin so a pause/unpause keypress or a window
+            // close isn't missed while we wait for the field boundary.
+            self.events();
             std::hint::spin_loop();
+        }
+    }
+
+    /// Present the current GPU display frame immediately: used when the game pauses/unpauses
+    /// without calling VSync (it polls PadRead instead). Shows whatever the game C has drawn.
+    fn present_pause_frame(&mut self) {
+        let (_pw, _ph) = self.window.size_in_pixels();
+        let shown = psyq::gpu::with(|g| {
+            if g.scale() > 1 {
+                g.read_display_hd(&mut self.buf)
+            } else {
+                g.read_display(&mut self.buf)
+            }
+        });
+        let picture = shown.map(|(w, h)| Picture {
+            pixels: &self.buf[..w * h],
+            w: w as u32,
+            h: h as u32,
+        });
+        Self::show(&mut self.renderer, &self.window, picture, self.settings.fit, None);
+    }
+
+    /// Runs the VBlanks the game isn't waiting for while it polls `PadRead`: the PS1's VBlank
+    /// interrupt doesn't wait for `VSync`, it keeps firing (and with it libsnd, the SPU, and
+    /// the CD's streamed audio). Each poll advances the virtual clock to the wall clock's
+    /// field, one field at a time, so a paused game keeps its music at the right pace.
+    fn advance_polls_to_now(&mut self) {
+        let now = self.t0.elapsed().as_nanos() as u64;
+        let pacer = self.pacer.get_or_insert_with(|| Pacer::new(now));
+        let mut fields = 0;
+        while pacer.field_due(now) {
+            pacer.next(now);
+            fields += 1;
+        }
+        if fields > 0 {
+            psyq::libetc::advance_to(psyq::libetc::vblank_count() + fields);
         }
     }
 }
@@ -769,10 +827,39 @@ impl psyq::libetc::Host for Window {
     }
 
     fn pad(&mut self, _caller: usize) -> u32 {
+        // Drain SDL events even when the game polls PadRead without VSync (paused menu,
+        // etc.): otherwise a keypress/release is never seen and the game appears frozen.
+        self.events();
         let held = self.held_pad();
         self.held_over &= held;
         let bits = held & !self.held_over;
+
+        // The pause menu is `while (PAUSE_STATE != 0) PAUSE_INPUT = PadRead(1);` (utils2.c):
+        // the game stops calling VSync, but on the PS1 the VBlank interrupt keeps firing, so
+        // libsnd keeps ticking and the SPU keeps playing (the music goes on while paused).
+        // Here only VSync runs VBlanks, so while the game polls, let them pass with the wall
+        // clock: libsnd's ticks and the SPU's samples run off `libetc::advance_to`.
+        self.advance_polls_to_now();
+
+        // Detect pause/unpause transitions (Start button). The game polls PadRead without
+        // VSync while paused, so present the current frame when Start changes state, so the
+        // pause box appears at once.
+        let start_pressed = held & START != 0;
+        if start_pressed != self.start_was_pressed {
+            self.start_was_pressed = start_pressed;
+            self.pause_present_needed = true;
+        }
+        if self.pause_present_needed {
+            self.present_pause_frame();
+            self.pause_present_needed = false;
+        }
+
         self.pad_log.push(psyq::libetc::vblank_count(), bits);
+        // The game may poll PadRead in a tight loop while paused (no VSync between calls).
+        // Yield to avoid pinning a CPU core when there is no new input.
+        if bits == 0 {
+            std::thread::sleep(Duration::from_millis(1));
+        }
         bits
     }
 }

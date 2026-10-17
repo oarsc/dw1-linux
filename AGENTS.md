@@ -6,7 +6,10 @@ dw1-silicon is a native port of Digimon World (PS1, USA SLUS-01032) from the mat
 
 **Architecture:** Hybrid approach - game C from decomp + Rust for everything new (PS1 libraries reimplemented). Long-term goal: full Rust migration.
 
-**Current Status (2026-10-17):** Build compiles and links for Linux x86_64. Vulkan renderer works. Game opens a window, shows title screen, skips intro video, reaches main menu, starts a new game, shows Jijimon naming dialog, then crashes on first map load due to `__DATA` segment limit (fix in progress in `crates/psyq/src/memory.rs`).
+**Current Status (2026-10-17):** Build compiles and links for Linux x86_64. Vulkan renderer works.
+Game opens a window, shows title screen, skips intro video, reaches main menu, starts a new game,
+shows Jijimon naming dialog, loads first map successfully. The `__DATA` segment limit crash on
+first map load is fixed (uses `dl_iterate_phdr` for precise ELF segment limit).
 
 ---
 
@@ -222,12 +225,6 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 | `crates/psyq/src/memory.rs` | Mach-O symbols → ELF `__data_start` + `dl_iterate_phdr` | ✅ Done |
 | `crates/decomp-c/overlays.rs` | `.global` for overlay end symbols | ✅ Done |
 | `crates/decomp-c/src/overlays.rs` | Skip resident keep variables | ✅ Done |
-| `crates/dw1/src/main.rs` | Crash handler, save dir, DuckStation path | ⬜ Pending |
-| `crates/dw1/src/settings.rs` | XDG settings path | ⬜ Pending |
-| `crates/dw1/src/window/snapshot.rs` | XDG reports path | ⬜ Pending |
-| `crates/dw1/src/window/splash.rs` | "Native Mac build" text | ⬜ Pending |
-| `tools/make-app.sh` | Replace with Linux build script | ⬜ Pending |
-| `packaging/Info.plist.in` | Replace with `.desktop` template | ⬜ Pending |
 
 ---
 

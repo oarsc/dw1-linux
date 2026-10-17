@@ -48,7 +48,15 @@ pub struct Headless {
     checkpoints: Option<Checkpoints>,
     /// DW1_HD_STATS: the HD drawing time counted so far.
     hd_ns_seen: u64,
+    /// The VBlank of the last pad poll (without a replay) and how many polls it has seen.
+    poll_vblank: u32,
+    polls_at_vblank: u32,
 }
+
+/// Polls at one VBlank before a field is let pass while the game isn't calling `VSync`: the
+/// pause menu's `while (PAUSE_STATE != 0) PAUSE_INPUT = PadRead(1);` (utils2.c). Normal play
+/// polls a couple of times per frame at most.
+const PAUSE_POLLS_PER_FIELD: u32 = 8;
 
 /// Checkpoint bookkeeping, mirroring `oracle/replay.lua`'s `pollCheckpoints`.
 struct Checkpoints {
@@ -317,6 +325,8 @@ impl Headless {
             out,
             replay,
             hd_ns_seen: 0,
+            poll_vblank: 0,
+            polls_at_vblank: 0,
         }
     }
 
@@ -436,6 +446,22 @@ impl psyq::libetc::Host for Headless {
 
     fn pad(&mut self, caller: usize) -> u32 {
         let Some(replay) = self.replay.as_mut() else {
+            let vblank = psyq::libetc::vblank_count();
+            // The pause menu is `while (PAUSE_STATE != 0) PAUSE_INPUT = PadRead(1);` (utils2.c):
+            // no `VSync` in the loop, so on its own nothing would advance here and the game
+            // would spin forever with the sound stopped. On the PS1 the VBlank interrupt keeps
+            // firing; headless has no wall clock, so let a field pass after a burst of polls at
+            // one VBlank, which only that loop produces.
+            if self.poll_vblank == vblank {
+                self.polls_at_vblank += 1;
+                if self.polls_at_vblank >= PAUSE_POLLS_PER_FIELD {
+                    self.polls_at_vblank = 0;
+                    psyq::libetc::advance_to(vblank + 1);
+                }
+            } else {
+                self.poll_vblank = vblank;
+                self.polls_at_vblank = 0;
+            }
             let vblank = psyq::libetc::vblank_count();
             if let Some(c) = self.checkpoints.as_mut() {
                 c.at_poll(&self.out, vblank);
