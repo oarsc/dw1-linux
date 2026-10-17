@@ -15,19 +15,11 @@ first map load is fixed (uses `dl_iterate_phdr` for precise ELF segment limit).
 
 ## Critical Components for Linux Port
 
-### 1. Build System (`tools/make-app.sh`)
+### 1. Build System
 
-**Purpose:** Creates macOS `.app` bundle from the built binary.
+**Linux:** No app bundle is created. `cargo build --release` produces the plain binary.
 
-**Linux requirements:**
-- Remove or replace `.app` creation logic
-- Linux doesn't use app bundles; use standard binary packaging
-- Icons should be .png/.svg for Linux desktop files
-- No code signing needed
-
-**File locations:**
-- App template: `packaging/Info.plist.in`
-- Icon source: `packaging/icon-1024.png`
+**macOS (eliminated):** `tools/make-app.sh`, `packaging/Info.plist.in` and `tools/make-icon.py` were macOS-specific and have been deleted. The project is Linux-only. The icon source (`packaging/icon-1024.png`) is kept for the Linux `.desktop` file.
 
 ### 2. C Compilation (`crates/decomp-c/build.rs`)
 
@@ -109,16 +101,15 @@ first map load is fixed (uses `dl_iterate_phdr` for precise ELF segment limit).
 - Use Linux-specific ucontext offsets
 - Use `backtrace()` from libgcc or similar for stack traces
 
-### 8. Metadata (`packaging/Info.plist.in`)
+### 8. Metadata (`packaging/`)
 
-**Mac-specific keys (still pending):**
-- CFBundleIdentifier
-- LSMinimumSystemVersion
-- NSHighResolutionCapable
-- LSApplicationCategoryType
+**Done (Linux .desktop file):**
+- `packaging/dw1.desktop.in` — `.desktop` template for Linux desktop integration
+- `tools/make-linux.sh` — installs binary, .desktop file, and icon
 
-**Linux requirements:**
-- Create `.desktop` file for Linux desktop integration
+**macOS (no longer used, kept for reference):**
+- `packaging/Info.plist.in` — macOS app bundle metadata
+- `tools/make-app.sh` — macOS `.app` bundle creation
 
 ### 9. Architecture Assumptions
 
@@ -226,8 +217,9 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 | `crates/dw1/src/window/snapshot.rs` | XDG reports path (`data_dir()/reports/`) | ✅ Done |
 | `crates/dw1/src/main.rs` | Crash handler (SIGSEGV/SIGBUS via Linux x86_64 ucontext), DuckStation path | ✅ Done |
 | `crates/dw1/src/window/splash.rs` | "Native Mac build" text | ⬜ Pending |
-| `tools/make-app.sh` | Replace with Linux build script | ⬜ Pending |
-| `packaging/Info.plist.in` | Replace with `.desktop` template | ⬜ Pending |
+| `packaging/Info.plist.in` | Deleted (macOS-only) | ✅ Done |
+| `tools/make-app.sh` | Deleted (macOS-only) | ✅ Done |
+| `tools/make-icon.py` | Deleted (macOS-only) | ✅ Done |
 
 ---
 

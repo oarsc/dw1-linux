@@ -20,6 +20,45 @@ machine stays clean.
 You only need **Docker** installed and working. Everything else (Rust, clang,
 SDL3, Vulkan, etc.) is installed inside the container.
 
+### Running outside Docker (optional)
+
+The release binary (`target/release/dw1`) is **dynamically linked**, so if you
+want to run it directly on your host instead of inside Docker, you need the
+following runtime libraries installed:
+
+| Category | Packages (Debian/Ubuntu) | Packages (Arch Linux) | For |
+|----------|--------------------------|----------------------|-----|
+| Graphics | `libsdl3-0`, `libvulkan1`, `mesa-vulkan-drivers` | `sdl3`, `vulkan-loader`, `mesa` | Window + rendering |
+| X11 | `libx11-6`, `libxcursor1`, `libxrandr2`, `libxi6`, `libxinerama1`, `libxkbcommon0` | `libx11`, `libxcursor`, `libxrandr`, `libxi`, `libxinerama`, `libxkbcommon` | Window system |
+| Audio | `libasound2`, `libpulse0` | `alsa-lib`, `libpulse` | Sound |
+| X11 extensions | `libxss1`, `libxtst6` | `libxss`, `libxtst` | Screen, tests |
+
+**Cross-distro compatibility:** The binary is compiled inside an Arch Linux
+container. It runs on any x86_64 Linux distro as long as the host's `glibc` is
+the same version or newer than Arch's. If your host has an older `glibc`
+(e.g. Ubuntu 22.04 LTS), you may get a `GLIBC_2.xx not found` error. In that
+case, either use Docker (recommended) or compile natively on your host.
+
+To check whether all libraries resolve on your host:
+
+```bash
+ldd target/release/dw1
+```
+
+If any library shows `=> not found`, install it. If you see a `GLIBC_2.xx`
+version error, compile natively instead.
+
+```
+Arch Linux:
+sudo pacman -S sdl3 vulkan-loader mesa libx11 libxcursor libxrandr libxi libxinerama libxkbcommon alsa-lib libpulse libxss libxtst
+
+Debian / Ubuntu:
+sudo apt install libsdl3-0 libvulkan1 mesa-vulkan-drivers libx11-6 libxcursor1 libxrandr2 libxi6 libxinerama1 libxkbcommon0 libasound2 libpulse0 libxss1 libxtst6
+
+Fedora:
+sudo dnf install sdl3 vulkan-loader mesa-libGL libX11 libXcursor libXrandr libXi libXinerama libxkbcommon alsa-lib pulseaudio-libs libXScrnSaver libXtst
+```
+
 ---
 
 ## Step by step: compile and run
@@ -83,6 +122,16 @@ The first build may take several minutes (downloading and compiling Rust depende
 
 ### 6. Run the game
 
+You need your own legal copy of *Digimon World* (USA, SLUS-01032) as a `.cue`/`.bin` pair.
+Place them in `external/` (gitignored — game data is never committed):
+
+```
+external/Digimon World (USA).cue
+external/Digimon World (USA).bin
+```
+
+Then run:
+
 ```bash
 export DW1_DISC="./external/Digimon World (USA).cue"
 ./target/release/dw1
@@ -115,7 +164,37 @@ DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1
 >
 > `DW1_SAVE_DIR` overrides the save directory if set.
 
-### 7. Enter the container to edit code (optional)
+> **Dependencies on the host machine:** The release binary is *dynamically linked*. It needs
+> SDL3 and Vulkan (or OpenGL) libraries on the host if you run it outside Docker. The simplest
+> way is to run inside the Docker container (all dependencies are already installed there). If
+> you prefer to run on the host directly, install the runtime libraries:
+> `libsdl3`, `vulkan` (or `libgl1-mesa-dev`), `libx11`, `libxcursor`, `libxrandr`, `libxi`,
+> `libxinerama`, `libxkbcommon`, `alsa-lib`, `libpulse`.
+
+### 7. Package and install (optional)
+
+`tools/make-linux.sh` builds the release binary and (with `--install`) installs it to your
+system. It does **not** statically bundle libraries: the binary is dynamically linked, so the
+host still needs SDL3 and Vulkan/OpenGL at run time (see above).
+
+```bash
+./do tools/make-linux.sh --install
+```
+
+This installs:
+- `dw1` binary to `/usr/local/bin/dw1`
+- `.desktop` file to `/usr/local/share/applications/dw1.desktop`
+- Icon to `/usr/local/share/icons/hicolor/1024x1024/apps/dw1.png`
+
+You can then launch Digimon World from your desktop environment's application menu.
+
+To install to a different prefix:
+
+```bash
+PREFIX=/opt/dw1 ./do tools/make-linux.sh --install
+```
+
+### 8. Enter the container to edit code (optional)
 
 If you want to edit code and recompile without typing `./do` each time:
 
@@ -142,7 +221,8 @@ dw1-linux/
 ├── decomp/Dockerfile   # Ubuntu image with MIPS toolchain for dw_decomp
 ├── external/           # Gitignored: your legal .cue/.bin game disc
 ├── tools/
-│   └── build-linux.sh  # Linux build script (run via ./do)
+│   ├── build-linux.sh  # Linux build script (run via ./do)
+│   └── make-linux.sh   # Linux packaging script (build + --install)
 ├── crates/             # Rust code (window, GPU, audio, PS1 SDK, etc.)
 ├── docs/linux-port/    # Detailed port plan (7 phases)
 ├── AGENTS.md           # Context for AI agents
@@ -159,6 +239,7 @@ dw1-linux/
 | Build Docker image | `./do` |
 | Compile release | `./do tools/build-linux.sh` |
 | Compile debug | `./do cargo build -p dw1` |
+| Package and install | `./do tools/make-linux.sh --install` |
 | Run the game | `DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1` |
 | Shell in container | `./do bash` |
 | Check project status | `cat LINUX_PORT_STATUS.md` |

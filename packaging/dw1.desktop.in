@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Digimon World
+GenericName=Digimon World (PS1)
+Comment=Native Linux port of Digimon World (PS1, USA SLUS-01032), built from the dw_decomp game C
+Exec=dw1 %F
+Icon=dw1
+Terminal=false
+Type=Application
+Category=Game;RolePlaying;
+Keywords=digimon;world;ps1;emulator;game;
+StartupNotify=true
+MimeType=application/x-dw1-cue;
