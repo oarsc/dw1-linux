@@ -151,13 +151,13 @@ El fichero `do` en la raíz es un wrapper para Docker:
 
 - **Construir la imagen** (sin parámetros):
   ```bash
-  ./do
+  ./compile
   ```
 - **Ejecutar un comando dentro del contenedor** (con parámetros):
   ```bash
-  ./do cargo build --release -p dw1
-  ./do bash
-  ./do cargo test
+  ./tools/dtb cargo build --release -p dw1
+  ./tools/dtb bash
+  ./tools/dtb cargo test
   ```
 
 Monta el directorio actual (`$SCRIPT_DIR`) como `/dw1` dentro del contenedor y lo establece como `WORKDIR`.
@@ -180,8 +180,9 @@ python3 -m venv .venv
 ### 2. Build
 
 ```bash
-./do                      # Build Docker image (once)
-./do tools/build-linux.sh # Compile the game
+./tools/do                # Build Docker image (once)
+./tools/dtb               # Build Distrobox container (once)
+./compile                 # Compile the game
 ```
 
 Produces `target/release/dw1` (ELF x86_64).
@@ -290,8 +291,7 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 **Docker notes:**
 - Dependencies are installed in Docker containers to avoid polluting the host
 - Two Dockerfiles: root `Dockerfile` (Arch, main build) and `decomp/Dockerfile` (Ubuntu, MIPS toolchain)
-- Use `./do` to build the image or run commands inside the container
-- The `do` script mounts the current directory as `/dw1` inside the container
+- Use `./compile` to build the image or run commands inside the container
 
 ---
 
@@ -309,7 +309,7 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 ### Reference documents
 
 - **`README-linux.md`** — Project summary and step-by-step to compile/run on Linux (in English).
-- **`tools/build-linux.sh`** — Linux build script (run inside Docker via `./do`).
+- **`tools/build-linux.sh`** — Linux build script (run inside Docker via `./compile`).
 - **`external/`** — Gitignored folder for your legal `.cue`/`.bin` game disc.
 - **`docs/linux-port/`** — Detailed port plan (7 phases, one document per phase).
 - **`LINUX_PORT_STATUS.md`** — Phase progress checklist.

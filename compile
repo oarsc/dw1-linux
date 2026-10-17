@@ -1,0 +1,5 @@
+#!/bin/sh
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+exec "$SCRIPT_DIR/tools/dtb" tools/build-linux.sh

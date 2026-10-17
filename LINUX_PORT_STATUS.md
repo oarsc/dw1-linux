@@ -101,9 +101,21 @@ None — the game builds, opens a Vulkan window, saves to `~/.local/share/dw1-li
 - `tools/make-linux.sh`: new Linux packaging script (builds release binary, `--install`
   copies binary to `$PREFIX/bin`, .desktop to `$PREFIX/share/applications`, icon to
   `$PREFIX/share/icons/hicolor/1024x1024/apps/`).
-- `tools/make-app.sh` and `packaging/Info.plist.in`: macOS-specific, kept for reference
-  but no longer used (project is Linux-only).
+- `tools/make-app.sh`, `packaging/Info.plist.in`, `tools/make-icon.py`: deleted (macOS-only).
 
 ---
+## Editing game C for mods and corrections
 
+The game C source lives in the `decomp/` submodule (fork `oarsc/dw_decomp`, based on `jype0/dw_decomp`). To modify the game:
+
+1. **Edit** files in `decomp/src/` (or `decomp/text/` for YAML-based text). Never edit generated files (`asm/`, `build/`, `assets/`, `disks/`).
+2. **Recompile:** `./do cargo build --release -p dw1`
+3. **Test:** `DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue ./target/release/dw1`
+4. **Verify:** Run certified replays against the PCSX-Redux oracle (`tools/replay-check.sh`) to confirm no behavioral regression.
+
+The game C calls PS1 SDK functions implemented as `extern "C"` in Rust (`crates/psyq/`). New SDK calls must be added there first.
+
+See `D14` in `LINUX_PORT_DECISIONS.md` for full details.
+
+---
 *End of LINUX_PORT_STATUS.md*

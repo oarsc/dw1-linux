@@ -99,18 +99,28 @@ The `external/` directory is gitignored — game data is never committed.
 From the project root:
 
 ```bash
-./do
+./tools/do
 ```
 
-This builds and tags the image as `dw1-builder`. You only need to do this once
-(or when the `Dockerfile` changes).
+This builds and tags the image as `dw1-builder`. You only need to do this once (or when the `Dockerfile` changes). Then do:
+
+```bash
+./tools/dtb
+```
+
+To create the container distrobox will work on.
 
 ### 5. Compile the game for Linux
 
 Make the build script executable, then run it inside the Docker container:
 
 ```bash
-./do tools/build-linux.sh
+# Using distrobox
+./compile
+./tools/dtb tools/build-linux.sh
+
+# Using docker directly
+./tools/do tools/build-linux.sh
 ```
 
 This compiles the C from `dw_decomp` and all the Rust code, producing the
@@ -133,36 +143,13 @@ external/Digimon World (USA).bin
 Then run:
 
 ```bash
-export DW1_DISC="./external/Digimon World (USA).cue"
-./target/release/dw1
-```
+# Using distrobox
+./run
+./tools/dtb env DW1_DISC="/dw1/external/Digimon World (USA).cue" /dw1/target/release/dw1
 
-Or in one line:
-
-```bash
+# Using host directly
 DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1
 ```
-
-Inside a Docker container you also need `XDG_RUNTIME_DIR` set:
-
-```bash
-export XDG_RUNTIME_DIR=/tmp/runtime-root
-mkdir -p /tmp/runtime-root
-DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1
-```
-
-> **Status:** The game builds, opens a Vulkan window, shows the title screen, skips the intro
-> video, reaches the main menu, starts a new game, shows the Jijimon naming dialog, and loads
-> the first map successfully. The `__DATA` segment limit crash on first map load has been fixed
-> (uses `dl_iterate_phdr` for a precise ELF segment limit).
->
-> **File locations (XDG Base Directory Specification):**
-> - Saves: `$XDG_DATA_HOME/dw1-linux/saves/` (default `~/.local/share/dw1-linux/saves/`)
-> - Settings: `$XDG_CONFIG_HOME/dw1-linux/settings.txt` (default `~/.config/dw1-linux/settings.txt`)
-> - Reports: `$XDG_DATA_HOME/dw1-linux/reports/` (default `~/.local/share/dw1-linux/reports/`)
-> - DuckStation cards: `~/.local/share/duckstation/memcards/Digimon World (USA)_1.mcd`
->
-> `DW1_SAVE_DIR` overrides the save directory if set.
 
 > **Dependencies on the host machine:** The release binary is *dynamically linked*. It needs
 > SDL3 and Vulkan (or OpenGL) libraries on the host if you run it outside Docker. The simplest
@@ -215,34 +202,23 @@ cd /dw1
 
 ```
 dw1-linux/
-├── do                  # Docker wrapper (build image / run commands)
 ├── Dockerfile          # Arch Linux image with build dependencies
 ├── decomp/             # Submodule: dw_decomp (game C source)
 ├── decomp/Dockerfile   # Ubuntu image with MIPS toolchain for dw_decomp
 ├── external/           # Gitignored: your legal .cue/.bin game disc
 ├── tools/
 │   ├── build-linux.sh  # Linux build script (run via ./do)
-│   └── make-linux.sh   # Linux packaging script (build + --install)
+│   ├── make-linux.sh   # Linux packaging script (build + --install)
+│   ├── do              # Docker wrapper (build image / run commands)
+│   └── dtb             # Distrobox wrapper (build container / run commands)
 ├── crates/             # Rust code (window, GPU, audio, PS1 SDK, etc.)
 ├── docs/linux-port/    # Detailed port plan (7 phases)
+├── compile             # Quick compilation of the code using Distrobox
+├── run                 # Quick execution of the compiled using Distrobox
 ├── AGENTS.md           # Context for AI agents
 ├── LINUX_PORT_STATUS.md           # Phase progress checklist
 └── LINUX_PORT_DECISIONS.md        # Design decisions made
 ```
-
----
-
-## Useful commands
-
-| Action | Command |
-|---|---|
-| Build Docker image | `./do` |
-| Compile release | `./do tools/build-linux.sh` |
-| Compile debug | `./do cargo build -p dw1` |
-| Package and install | `./do tools/make-linux.sh --install` |
-| Run the game | `DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1` |
-| Shell in container | `./do bash` |
-| Check project status | `cat LINUX_PORT_STATUS.md` |
 
 ---
 
@@ -267,7 +243,3 @@ The detailed plan is in `docs/linux-port/`:
 5. Crash handler (Linux signals)
 6. Packaging (.desktop, install scripts)
 7. Testing (PCSX-Redux oracle, 43 certified replays)
-
----
-
-*End of README-linux.md*

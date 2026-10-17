@@ -5,7 +5,7 @@
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 if [ $# -eq 0 ]; then
-    distrobox create --name dw1 --image dw1-builder --volume "$PWD:/dw1" --nvidia
+    distrobox create --name dw1 --image dw1-builder --volume "$SCRIPT_DIR/..:/dw1" --nvidia
     exit $?
 fi
 

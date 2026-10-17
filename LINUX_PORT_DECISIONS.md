@@ -133,5 +133,14 @@ This file records architectural and flow decisions, with their justification, so
 **Consequence:** The script runs inside the container (WORKDIR=/dw1), not on the host. It is invoked as `./do tools/build-linux.sh` or directly `./do cargo build --release -p dw1`.
 
 ---
+## D14. Edit dw_decomp C for mods and corrections
 
-*End of LINUX_PORT_DECISIONS.md*
+**Decision:** The game C source lives in the `decomp/` submodule (fork `oarsc/dw_decomp`, based on `jype0/dw_decomp`). Users edit files in `decomp/src/` directly to modify game logic, stats, text, etc., then recompile with `./do cargo build --release -p dw1`.
+
+**Justification:** The user's main goal is having readable, editable C code that runs natively on Linux. `dw_decomp` provides human-readable C organized by overlays (main, btl, evl, std, trn, etc.), not machine-translated code.
+
+**Consequence:** Changes to game C are made in `decomp/src/` (or `decomp/text/` for YAML-based text). Generated files (`asm/`, `build/`, `assets/`, `disks/`) must never be edited. After editing, recompile and verify against the oracle (PCSX-Redux certified replays) to ensure behavior matches the original PS1.
+
+**C↔Rust boundary:** The game C calls PS1 SDK functions (`GsSortObject4J`, `CdRead`, `PadRead`, etc.) implemented as `extern "C"` in Rust (`crates/psyq/`). If a mod needs a new SDK call, it must be added to `crates/psyq/` first.
+
+**External references:** `psxrecomp` (`.psxmod` versioned mod system) and `DW2-PC` (PC architecture template) are consulted as inspiration for future mod tooling, but are not part of the codebase.
