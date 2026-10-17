@@ -1,93 +1,245 @@
-# dw1-silicon
+# dw1-linux — Linux Port of Digimon World (PS1)
 
-A native Apple Silicon port of **Digimon World** (PlayStation, 1999; USA release
-SLUS-01032) for macOS.
+## Project Summary
 
-It isn't an emulator. The game's own code, recovered as C by the
-[dw_decomp](https://github.com/jype0/dw_decomp) decompilation project, is compiled for arm64,
-and the PlayStation's libraries and hardware underneath it are replaced by a Mac layer
-written in Rust. The game's rules, RNG, scripts, text, music and saves behave as on the
-original; improvements like higher resolution, no texture wobble and gamepad support are
-options, each labelled as original or added, with the original picture always available.
-The long-term goal is the whole game in Rust, migrated one module at a time and checked
-against the original at every step.
+`dw1-silicon` is a native port (not an emulator) of *Digimon World* for
+PlayStation 1 (USA version, SLUS-01032), built from the matching decompilation
+project [`dw_decomp`](https://github.com/jype0/dw_decomp).
 
-**Status:** playable, being checked. The game runs natively with sound,
-saves (as 15 save slots) and a sharper picture. New games, File City, raising your partner,
-battles, training, the Item Keeper and saving, tournaments, Battle Mode, fishing, curling,
-digivolving, death and rebirth, recruiting, the gyms, the ending and the credits are all checked
-against the original game step by step. A first full playthrough is under way. See
-[PLAN.md](PLAN.md).
+The game logic is in C (editable, from `dw_decomp`). Everything else — window,
+graphics, audio, input, PS1 libraries — is in Rust.
 
-## Building and playing
+This repository (`dw1-linux`) is a copy of `dw1-silicon` adapted to compile and
+run natively on **Linux**, using Docker for build dependencies so the host
+machine stays clean.
 
-You need a Mac with Apple Silicon, your own disc image of Digimon World (USA) as a `.cue`/`.bin`
-pair, Apple's command line tools (`xcode-select --install`) and Rust ([rustup](https://rustup.rs)).
-Then:
+---
 
-```sh
-git clone https://github.com/loafykitten/dw1-silicon.git
-cd dw1-silicon
-git submodule update --init decomp
-git -C decomp submodule update --init external/psyq_headers
-python3 -m venv .venv && .venv/bin/pip install pyyaml cmake
-tools/make-app.sh --install    # Digimon World.app in ~/Applications
+## Prerequisites (on the host)
+
+You only need **Docker** installed and working. Everything else (Rust, clang,
+SDL3, Vulkan, etc.) is installed inside the container.
+
+### Running outside Docker (optional)
+
+The release binary (`target/release/dw1`) is **dynamically linked**, so if you
+want to run it directly on your host instead of inside Docker, you need the
+following runtime libraries installed:
+
+| Category | Packages (Debian/Ubuntu) | Packages (Arch Linux) | For |
+|----------|--------------------------|----------------------|-----|
+| Graphics | `libsdl3-0`, `libvulkan1`, `mesa-vulkan-drivers` | `sdl3`, `vulkan-loader`, `mesa` | Window + rendering |
+| X11 | `libx11-6`, `libxcursor1`, `libxrandr2`, `libxi6`, `libxinerama1`, `libxkbcommon0` | `libx11`, `libxcursor`, `libxrandr`, `libxi`, `libxinerama`, `libxkbcommon` | Window system |
+| Audio | `libasound2`, `libpulse0` | `alsa-lib`, `libpulse` | Sound |
+| X11 extensions | `libxss1`, `libxtst6` | `libxss`, `libxtst` | Screen, tests |
+
+**Cross-distro compatibility:** The binary is compiled inside an Arch Linux
+container. It runs on any x86_64 Linux distro as long as the host's `glibc` is
+the same version or newer than Arch's. If your host has an older `glibc`
+(e.g. Ubuntu 22.04 LTS), you may get a `GLIBC_2.xx not found` error. In that
+case, either use Docker (recommended) or compile natively on your host.
+
+To check whether all libraries resolve on your host:
+
+```bash
+ldd target/release/dw1
 ```
 
-The first start asks for your disc image. **[The guide](docs/guide.html)** (open it in a browser)
-covers installing the tools, controls, the picture settings, saves and moving them to and from
-DuckStation, and what to do when something goes wrong.
+If any library shows `=> not found`, install it. If you see a `GLIBC_2.xx`
+version error, compile natively instead.
 
-## You need your own copy of the game
+```
+Arch Linux:
+sudo pacman -S sdl3 vulkan-loader mesa libx11 libxcursor libxrandr libxi libxinerama libxkbcommon alsa-lib libpulse libxss libxtst
 
-This repository contains no game data: no disc image, no assets, no text, no music. The
-port reads your own disc image of Digimon World (USA) and checks it against the known good
-dump's hash before it starts. The app you build holds code and text made from the game, so it's
-for your own Mac: please don't share it. Please don't open issues asking where to get the
-game.
+Debian / Ubuntu:
+sudo apt install libsdl3-0 libvulkan1 mesa-vulkan-drivers libx11-6 libxcursor1 libxrandr2 libxi6 libxinerama1 libxkbcommon0 libasound2 libpulse0 libxss1 libxtst6
 
-## Credits
+Fedora:
+sudo dnf install sdl3 vulkan-loader mesa-libGL libX11 libXcursor libXrandr libXi libXinerama libxkbcommon alsa-lib pulseaudio-libs libXScrnSaver libXtst
+```
 
-This port stands on other people's work:
+---
 
-- **[dw_decomp](https://github.com/jype0/dw_decomp)** by jype0 and contributors (MIT): the
-  matching decompilation of Digimon World. Every line of the game's logic this port runs
-  comes from it. Without it this project couldn't exist.
-- **SydMontague**'s [DW1-Code](https://github.com/SydMontague/DW1-Code) and
-  [DW1-SydPatches](https://github.com/SydMontague/DW1-SydPatches): years of
-  reverse-engineering behind the decomp's names and structures.
-- **[DW2-PC](https://github.com/Wyrelade/DW2-PC)** by Wyrelade (CC0): a native PC port of
-  Digimon World 2 from its decompilation. Its design (data packs built from the player's
-  disc, a hash manifest, overlays linked into one program, a GTE model checked against an
-  emulator) is the template for this one.
-- **[PCSX-Redux](https://github.com/grumpycoders/pcsx-redux)** by grumpycoders and
-  contributors: the emulator we use as the reference, recording inputs and comparing the
-  port's state and pictures against the original game.
-- **[psx-spx](https://psx-spx.consoledev.net/)** (nocash and contributors): the PlayStation
-  hardware documentation.
-- **[splat](https://github.com/ethteck/splat)**, **[spimdisasm](https://github.com/Decompollaborate/spimdisasm)**
-  and **[rabbitizer](https://github.com/Decompollaborate/rabbitizer)**: the decompilation
-  tooling dw_decomp's build relies on.
-- **[mkpsxiso / dumpsxiso](https://github.com/Lameguy64/mkpsxiso)** by Lameguy64 and
-  contributors: reading files from the disc image.
+## Step by step: compile and run
 
-## License
+### 1. Clone the repository (if not done yet)
 
-The code in this repository is licensed under either of
+```bash
+git clone --recurse-submodules https://github.com/loafykitten/dw1-silicon.git dw1-linux
+cd dw1-linux
+```
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-- MIT license ([LICENSE-MIT](LICENSE-MIT))
+If you already have the directory, skip this step.
 
-at your option. Unless you explicitly state otherwise, any contribution you intentionally
-submit for inclusion in this work, as defined in the Apache-2.0 license, shall be dual
-licensed as above, without any additional terms or conditions.
+### 2. Initialize submodules
 
-This covers this repository only. dw_decomp (the `decomp/` submodule) is under its own MIT
-license, and code adapted from DW2-PC keeps a note of its origin (CC0).
+```bash
+git submodule update --init decomp
+git -C decomp submodule update --init external/psyq_headers
+```
 
-## Legal
+This downloads the `dw_decomp` code (the game decompilation) and its Psy-Q headers.
 
-Digimon and Digimon World are trademarks of Bandai Namco and Toei Animation. This is an
-unofficial fan project, not affiliated with or endorsed by them. This repository contains
-none of the game's assets; the decompiled game code comes from dw_decomp (fetched as a git
-submodule), and the game data comes from your own disc.
+> **Note:** The second command initializes a nested submodule inside `decomp/`. If you skip it, the build will fail with "Psy-Q headers missing".
+
+### 3. Place your game disc (legal copy required)
+
+Place your own legal copy of *Digimon World* (USA) as a `.cue`/`.bin` pair in:
+
+```
+external/Digimon World (USA).cue
+external/Digimon World (USA).bin
+```
+
+The `external/` directory is gitignored — game data is never committed.
+
+### 4. Build the Docker image
+
+From the project root:
+
+```bash
+./tools/do
+```
+
+This builds and tags the image as `dw1-builder`. You only need to do this once (or when the `Dockerfile` changes). Then do:
+
+```bash
+./tools/dtb
+```
+
+To create the container distrobox will work on.
+
+### 5. Compile the game for Linux
+
+Make the build script executable, then run it inside the Docker container:
+
+```bash
+# Using distrobox
+./compile
+./tools/dtb tools/build-linux.sh
+
+# Using docker directly
+./tools/do tools/build-linux.sh
+```
+
+This compiles the C from `dw_decomp` and all the Rust code, producing the
+executable at `target/release/dw1`.
+
+The first build may take several minutes (downloading and compiling Rust dependencies).
+
+> Equivalent shortcut: `./do cargo build --release -p dw1`
+
+### 6. Run the game
+
+You need your own legal copy of *Digimon World* (USA, SLUS-01032) as a `.cue`/`.bin` pair.
+Place them in `external/` (gitignored — game data is never committed):
+
+```
+external/Digimon World (USA).cue
+external/Digimon World (USA).bin
+```
+
+Then run:
+
+```bash
+# Using distrobox
+./run
+./tools/dtb env DW1_DISC="/dw1/external/Digimon World (USA).cue" /dw1/target/release/dw1
+
+# Using host directly
+DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1
+```
+
+> **Dependencies on the host machine:** The release binary is *dynamically linked*. It needs
+> SDL3 and Vulkan (or OpenGL) libraries on the host if you run it outside Docker. The simplest
+> way is to run inside the Docker container (all dependencies are already installed there). If
+> you prefer to run on the host directly, install the runtime libraries:
+> `libsdl3`, `vulkan` (or `libgl1-mesa-dev`), `libx11`, `libxcursor`, `libxrandr`, `libxi`,
+> `libxinerama`, `libxkbcommon`, `alsa-lib`, `libpulse`.
+
+### 7. Package and install (optional)
+
+`tools/make-linux.sh` builds the release binary and (with `--install`) installs it to your
+system. It does **not** statically bundle libraries: the binary is dynamically linked, so the
+host still needs SDL3 and Vulkan/OpenGL at run time (see above).
+
+```bash
+./do tools/make-linux.sh --install
+```
+
+This installs:
+- `dw1` binary to `/usr/local/bin/dw1`
+- `.desktop` file to `/usr/local/share/applications/dw1.desktop`
+- Icon to `/usr/local/share/icons/hicolor/1024x1024/apps/dw1.png`
+
+You can then launch Digimon World from your desktop environment's application menu.
+
+To install to a different prefix:
+
+```bash
+PREFIX=/opt/dw1 ./do tools/make-linux.sh --install
+```
+
+### 8. Enter the container to edit code (optional)
+
+If you want to edit code and recompile without typing `./do` each time:
+
+```bash
+./do bash
+```
+
+Inside the container, the project is at `/dw1`:
+
+```bash
+cd /dw1
+./tools/build-linux.sh
+```
+
+---
+
+## Project structure (minimum)
+
+```
+dw1-linux/
+├── Dockerfile          # Arch Linux image with build dependencies
+├── decomp/             # Submodule: dw_decomp (game C source)
+├── decomp/Dockerfile   # Ubuntu image with MIPS toolchain for dw_decomp
+├── external/           # Gitignored: your legal .cue/.bin game disc
+├── tools/
+│   ├── build-linux.sh  # Linux build script (run via ./do)
+│   ├── make-linux.sh   # Linux packaging script (build + --install)
+│   ├── do              # Docker wrapper (build image / run commands)
+│   └── dtb             # Distrobox wrapper (build container / run commands)
+├── crates/             # Rust code (window, GPU, audio, PS1 SDK, etc.)
+├── docs/linux-port/    # Detailed port plan (7 phases)
+├── compile             # Quick compilation of the code using Distrobox
+├── run                 # Quick execution of the compiled using Distrobox
+├── AGENTS.md           # Context for AI agents
+├── LINUX_PORT_STATUS.md           # Phase progress checklist
+└── LINUX_PORT_DECISIONS.md        # Design decisions made
+```
+
+---
+
+## Important notes
+
+- **Personal use only.** Do not distribute executables, assets, or derived code.
+- **Never commit game data** (`.bin`, `.cue`, BIOS, saves, captures). They are in `.gitignore` under `external/`, `disc/`, `dumps/`, `build/`, `captures/`, `ref/`.
+- The game uses **Vulkan** by default on Linux. If you don't have Vulkan drivers,
+  switch to OpenGL in `crates/render/Cargo.toml`.
+- To edit the game logic, modify the C files in `decomp/src/` and recompile with
+  `./do tools/build-linux.sh`.
+
+---
+
+## Port plan (7 phases)
+
+The detailed plan is in `docs/linux-port/`:
+1. Build system (Linux build script)
+2. C compilation (remove xcrun, compile C on Linux)
+3. Rendering backend (Metal → Vulkan/OpenGL)
+4. File paths (XDG directories)
+5. Crash handler (Linux signals)
+6. Packaging (.desktop, install scripts)
+7. Testing (PCSX-Redux oracle, 43 certified replays)
