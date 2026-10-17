@@ -41,7 +41,7 @@ first map successfully. The `__DATA` segment limit crash on first map load is fi
 | 3 | `dl_iterate_phdr` for precise ELF `__DATA` segment limit | ✅ | `crates/psyq/src/memory.rs`: uses `dl_iterate_phdr` instead of `_end` + margin |
 | 4 | XDG paths for saves/settings/reports | ✅ | `data_dir()` → `$XDG_DATA_HOME/dw1-linux/`; `config_dir()` → `$XDG_CONFIG_HOME/dw1-linux/`; `default_save_dir()` → `data_dir()`; `settings_path()` → `config_dir()/settings.txt`; `duckstation_card()` → `.local/share/duckstation/` |
 | 4 | `DW1_DATA_DIR` / `DW1_CONFIG_DIR` | ✅ | Uses `XDG_DATA_HOME`/`XDG_CONFIG_HOME` directly (XDG spec) |
-| 5 | Linux crash handler (SIGSEGV/SIGBUS) | ⬜ | `crates/dw1/src/main.rs` still has macOS arm64 signal handler |
+| 5 | Linux crash handler (SIGSEGV/SIGBUS) | ✅ | `crates/dw1/src/main.rs`: replaced macOS `<mach/arm/_structs.h>` with Linux x86_64 `ucontext_t` + `gregs[]` via `libc` |
 | 5 | `pthread_main_np` removed (applog main thread) | ✅ | `crates/dw1/src/applog.rs`: captures `pthread_self()` in `start()` |
 | 6 | `.desktop` file | ⬜ | |
 | 6 | Install/uninstall scripts | ⬜ | |
@@ -59,7 +59,6 @@ first map successfully. The `__DATA` segment limit crash on first map load is fi
    ./dtb env DW1_DISC="/dw1/external/Digimon World (USA).cue" target/release/dw1
    ```
 2. Remaining macOS-only pieces:
-   - `crates/dw1/src/main.rs`: crash handler (lines 39-127) uses `<mach/arm/_structs.h>` and macOS syscalls.
    - `crates/dw1/src/window/splash.rs`: "Native Mac build" text.
 3. Verify a legal copy of the Digimon World disc is available for testing (`DW1_DISC`).
 4. Read `dw1-silicon/docs/s06-platform.md` and `docs/s08-oracle.md` for context.
@@ -68,7 +67,7 @@ first map successfully. The `__DATA` segment limit crash on first map load is fi
 
 ## Current blockers
 
-None — the game builds, opens a Vulkan window, and runs to the first map. Remaining work is platform adaptation (paths, crash handler, packaging), not build breakage.
+None — the game builds, opens a Vulkan window, saves to `~/.local/share/dw1-linux/`, and runs to the first map. Remaining work is platform adaptation (splash text, packaging), not build breakage.
 
 ---
 
@@ -89,11 +88,14 @@ None — the game builds, opens a Vulkan window, and runs to the first map. Rema
 - `crates/dw1/src/window.rs`: pause/unpause fixes — `self.events()` in `pad()` and
   `wait_for_field()`, `sleep(1ms)` when no input, `start_was_pressed`/`pause_present_needed`
   state, `present_pause_frame()` method.
-- `crates/dw1/src/main.rs`: `data_dir()` (`$XDG_DATA_HOME/dw1-silicon/`), `config_dir()`
-  (`$XDG_CONFIG_HOME/dw1-silicon/`), `default_save_dir()` → `data_dir()`,
+- `crates/dw1/src/main.rs`: `data_dir()` (`$XDG_DATA_HOME/dw1-linux/`), `config_dir()`
+  (`$XDG_CONFIG_HOME/dw1-linux/`), `default_save_dir()` → `data_dir()`,
   `settings_path()` → `config_dir()/settings.txt`, `duckstation_card()` → XDG DuckStation path.
 - `crates/dw1/src/settings.rs`: `Settings::path()` uses `settings_path()` (XDG config dir).
 - `crates/dw1/src/window/snapshot.rs`: comment updated from macOS to Linux paths.
+- `crates/dw1/src/main.rs`: crash handler — replaced macOS `<mach/arm/_structs.h>` arm64
+  signal handler with Linux x86_64 `ucontext_t` + `gregs[]` via `libc` for SIGSEGV/SIGBUS.
+- `crates/dw1/Cargo.toml`: added `libc` dependency.
 
 ---
 

@@ -1,4 +1,4 @@
-//! Digimon World as a native Apple Silicon app.
+//! Digimon World as a native Linux app.
 //!
 //! For now (Phase 2) the whole game C is linked and its `main()` runs until the first SDK call
 //! with no Rust implementation, which stops the program with that call's name.
@@ -31,42 +31,37 @@ fn open_disc() -> Result<pack::Disc, String> {
     disc::open_checked(&path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// `DW1_CRASH_TRACE=1`: on SIGSEGV/SIGBUS print the call stack (symbols) to stderr. lldb can't
-/// attach in the agent sandbox, and the game's crashes are otherwise silent (exit 139).
-///
-/// The handler runs on its own stack (so a stack overflow is reported too) and resets to the
-/// default action on entry (so a fault inside it ends the process). It walks the frame-pointer
-/// chain of the interrupted code from the registers the kernel saved (arm64 macOS keeps frame
-/// pointers), so it doesn't depend on the system's stack walker, which finds nothing from an
-/// alternate stack on older macOS. Output uses only `write`, `backtrace_symbols_fd` (writes to
-/// the descriptor without allocating) and `_exit`.
+/// `DW1_CRASH_TRACE=1`: on SIGSEGV/SIGBUS print the call stack (symbols) to stderr.
+/// On Linux x86_64 the handler walks the frame-pointer chain from the ucontext registers.
+/// Output uses only `write`, `backtrace_symbols_fd` and `_exit` (async-signal-safe).
 fn install_crash_trace() {
     use std::ffi::c_void;
+
     #[repr(C)]
     struct SigAction {
-        handler: extern "C" fn(i32, *mut c_void, *mut c_void),
-        mask: u32,
-        flags: i32,
+        sa_sigaction: extern "C" fn(i32, *mut c_void, *mut c_void),
+        sa_mask: usize,
+        sa_flags: usize,
+        sa_restorer: usize,
     }
+
     #[repr(C)]
     struct StackT {
-        sp: *mut c_void,
-        size: usize,
-        flags: i32,
+        ss_sp: *mut c_void,
+        ss_flags: i32,
+        ss_size: usize,
     }
-    // <sys/signal.h>
-    const SA_ONSTACK: i32 = 0x0001;
-    const SA_RESETHAND: i32 = 0x0004;
-    const SA_SIGINFO: i32 = 0x0040;
-    const SIGBUS: i32 = 10;
+
+    const SA_ONSTACK: i32 = 0x00000001;
+    const SA_RESETHAND: i32 = 0x00000004;
+    const SA_SIGINFO: i32 = 0x00000004;
     const SIGSEGV: i32 = 11;
-    // <sys/_types/_ucontext.h>, <mach/arm/_structs.h> (arm64): `uc_mcontext` is the pointer at
-    // byte 48 of the ucontext; in the mcontext, the 16-byte exception state is followed by the
-    // thread state x0-x28, then fp, lr, sp, pc.
-    const UC_MCONTEXT: usize = 48;
-    const MC_FP: usize = 16 + 29 * 8;
-    const MC_LR: usize = MC_FP + 8;
-    const MC_PC: usize = MC_FP + 24;
+    const SIGBUS: i32 = 7;
+
+    // Linux x86_64: ucontext_t.uc_mcontext.gregs[]
+    const REG_RIP: usize = 16;
+    const REG_RBP: usize = 6;
+
     unsafe extern "C" {
         fn sigaction(sig: i32, act: *const SigAction, old: *mut SigAction) -> i32;
         fn sigaltstack(ss: *const StackT, old: *mut StackT) -> i32;
@@ -74,19 +69,23 @@ fn install_crash_trace() {
         fn write(fd: i32, buf: *const c_void, n: usize) -> isize;
         fn _exit(code: i32) -> !;
     }
+
     extern "C" fn on_crash(_sig: i32, _info: *mut c_void, uc: *mut c_void) {
         const MSG: &[u8] = b"dw1: fatal signal (SIGSEGV or SIGBUS); call stack:\n";
         let mut frames = [std::ptr::null_mut::<c_void>(); 32];
         unsafe {
             write(2, MSG.as_ptr().cast(), MSG.len());
-            let mc = uc.cast::<u8>().add(UC_MCONTEXT).cast::<*const u8>().read();
-            let reg = |off: usize| mc.add(off).cast::<usize>().read();
-            frames[0] = reg(MC_PC) as *mut c_void;
-            frames[1] = reg(MC_LR) as *mut c_void;
+            // Linux x86_64: ucontext_t.uc_mcontext is at offset 40;
+            // mcontext_t.gregs[] starts at offset 0 of mcontext_t.
+            const UC_MCONTEXT_OFFSET: usize = 40;
+            let mc = uc.cast::<u8>();
+            let gregs = mc.add(UC_MCONTEXT_OFFSET).cast::<*const usize>().read();
+            let reg = |off: usize| *gregs.add(off);
+            frames[0] = reg(REG_RIP) as *mut c_void;
+            frames[1] = reg(REG_RBP) as *mut c_void;
             let mut n = 2;
-            // Each frame record is (caller's fp, return address). Stop at anything that doesn't
-            // look like a record further up the same stack.
-            let mut fp = reg(MC_FP);
+            // Each frame record is (caller's fp, return address).
+            let mut fp = reg(REG_RBP);
             while n < frames.len() && fp != 0 && fp.is_multiple_of(16) {
                 let next = (fp as *const usize).read();
                 let ret = (fp as *const usize).add(1).read();
@@ -104,18 +103,20 @@ fn install_crash_trace() {
             _exit(139);
         }
     }
+
     unsafe {
         // 256 KB for the handler, kept for the life of the process.
         let stack = Box::leak(vec![0u8; 256 * 1024].into_boxed_slice());
         let ss = StackT {
-            sp: stack.as_mut_ptr().cast(),
-            size: stack.len(),
-            flags: 0,
+            ss_sp: stack.as_mut_ptr().cast(),
+            ss_flags: 0,
+            ss_size: stack.len(),
         };
         let act = SigAction {
-            handler: on_crash,
-            mask: 0,
-            flags: SA_ONSTACK | SA_RESETHAND | SA_SIGINFO,
+            sa_sigaction: on_crash,
+            sa_mask: 0,
+            sa_flags: (SA_ONSTACK | SA_RESETHAND | SA_SIGINFO) as usize,
+            sa_restorer: 0,
         };
         if sigaltstack(&ss, std::ptr::null_mut()) != 0
             || sigaction(SIGSEGV, &act, std::ptr::null_mut()) != 0

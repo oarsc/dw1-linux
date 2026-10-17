@@ -224,7 +224,7 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 | `crates/dw1/src/main.rs` | `data_dir()`, `config_dir()`, `settings_path()`, `duckstation_card()` (XDG paths) | ✅ Done |
 | `crates/dw1/src/settings.rs` | XDG settings path (`config_dir()/settings.txt`) | ✅ Done |
 | `crates/dw1/src/window/snapshot.rs` | XDG reports path (`data_dir()/reports/`) | ✅ Done |
-| `crates/dw1/src/main.rs` | Crash handler (lines 39-127), `<mach/arm/_structs.h>` | ⬜ Pending |
+| `crates/dw1/src/main.rs` | Crash handler (SIGSEGV/SIGBUS via Linux x86_64 ucontext), DuckStation path | ✅ Done |
 | `crates/dw1/src/window/splash.rs` | "Native Mac build" text | ⬜ Pending |
 | `tools/make-app.sh` | Replace with Linux build script | ⬜ Pending |
 | `packaging/Info.plist.in` | Replace with `.desktop` template | ⬜ Pending |
