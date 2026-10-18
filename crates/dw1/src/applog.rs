@@ -1,12 +1,11 @@
-//! Where an app run's messages go (Phase 9.2). Opened from Finder the app has no terminal, so
-//! when it runs from a `.app` bundle (or with `DW1_LOG=1`) everything it prints goes to
-//! `~/Library/Logs/dw1-silicon/dw1-<UTC time>.log` (the newest `KEEP` are kept), the crash trace
-//! is on, and in the window build a stop shows a message box naming the log (the PS1 layer's
-//! `trap::stop`, a panic, `fatal`). A crash can't show anything, so a window run leaves a
-//! `running-<log name>` marker that any orderly exit removes (an `atexit` handler). A run holds
-//! a lock on its log while it lasts, so the next start knows a marker whose log is unlocked
-//! is a run that ended without exiting (an abort, a signal), says so, and only then removes the
-//! marker. Headless runs only log.
+//! Where an app run's messages go (Phase 9.2). When run with `DW1_LOG=1` everything it prints
+//! goes to `~/.local/share/dw1-linux/logs/dw1-<UTC time>.log` (the newest `KEEP` are kept), the
+//! crash trace is on, and in the window build a stop shows a message box naming the log (the
+//! PS1 layer's `trap::stop`, a panic, `fatal`). A crash can't show anything, so a window run
+//! leaves a `running-<log name>` marker that any orderly exit removes (an `atexit` handler). A
+//! run holds a lock on its log while it lasts, so the next start knows a marker whose log is
+//! unlocked is a run that ended without exiting (an abort, a signal), says so, and only then
+//! removes the marker. Headless runs only log.
 
 use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
@@ -27,21 +26,20 @@ static INTERACTIVE: AtomicBool = AtomicBool::new(false);
 /// The main thread's ID, captured when `start()` runs (Linux: `pthread_self()`).
 static MAIN_THREAD: OnceLock<c_ulong> = OnceLock::new();
 
-/// Running from a `.app` bundle.
-pub fn bundled() -> bool {
-    std::env::current_exe().is_ok_and(|p| p.to_string_lossy().contains(".app/Contents/MacOS/"))
-}
-
 fn log_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Logs/dw1-silicon"))
+    std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share"))
+        })
+        .map(|d| d.join("dw1-linux/logs"))
 }
 
-/// Starts logging when bundled (or `DW1_LOG=1`); `interactive`: the window build (message
-/// boxes, a marker). Returns the log of an earlier window run that ended without an orderly
-/// exit, if any (for `report_earlier_crash`).
+/// Starts logging when `DW1_LOG=1`; `interactive`: the window build (message boxes, a marker).
+/// Returns the log of an earlier window run that ended without an orderly exit, if any (for
+/// `report_earlier_crash`).
 pub fn start(interactive: bool) -> Option<PathBuf> {
-    let wanted =
-        bundled() || std::env::var_os("DW1_LOG").is_some_and(|v| !v.is_empty() && v != "0");
+    let wanted = std::env::var_os("DW1_LOG").is_some_and(|v| !v.is_empty() && v != "0");
     if !wanted {
         return None;
     }
@@ -119,10 +117,19 @@ pub fn start(interactive: bool) -> Option<PathBuf> {
 }
 
 /// Stdout and stderr to `f` (the descriptors, so C code and the crash trace write there too).
+/// Only redirect if not running from a terminal (no TTY), so logs appear in the terminal
+/// when running interactively.
 fn redirect(f: &std::fs::File) {
     use std::os::fd::AsRawFd;
     unsafe extern "C" {
         fn dup2(from: i32, to: i32) -> i32;
+        fn isatty(fd: i32) -> i32;
+    }
+    // SAFETY: no arguments, returns 1 if fd is a TTY, 0 otherwise.
+    let has_tty = unsafe { isatty(2) != 0 };
+    if has_tty {
+        // Running from terminal: don't redirect, logs appear in terminal
+        return;
     }
     // SAFETY: `f` is open; 1 and 2 are replaced by copies of it for the rest of the run.
     unsafe {

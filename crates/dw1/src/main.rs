@@ -31,17 +31,17 @@ fn open_disc() -> Result<pack::Disc, String> {
     disc::open_checked(&path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// `DW1_CRASH_TRACE=1`: on SIGSEGV/SIGBUS print the call stack (symbols) to stderr.
-/// On Linux x86_64 the handler walks the frame-pointer chain from the ucontext registers.
-/// Output uses only `write`, `backtrace_symbols_fd` and `_exit` (async-signal-safe).
+/// `DW1_CRASH_TRACE=1`: on SIGSEGV/SIGBUS/SIGFPE print the call stack (symbols) to stderr.
+/// On Linux x86_64 the handler uses libgcc's backtrace() to walk the stack.
+/// Output uses only `write`, `backtrace`, `backtrace_symbols_fd` and `_exit` (async-signal-safe).
 fn install_crash_trace() {
     use std::ffi::c_void;
 
     #[repr(C)]
     struct SigAction {
         sa_sigaction: extern "C" fn(i32, *mut c_void, *mut c_void),
-        sa_mask: usize,
-        sa_flags: usize,
+        sa_mask: u64,
+        sa_flags: u64,
         sa_restorer: usize,
     }
 
@@ -52,55 +52,30 @@ fn install_crash_trace() {
         ss_size: usize,
     }
 
-    const SA_ONSTACK: i32 = 0x00000001;
-    const SA_RESETHAND: i32 = 0x00000004;
-    const SA_SIGINFO: i32 = 0x00000004;
+    const SA_ONSTACK: u64 = 0x00000001;
+    const SA_RESETHAND: u64 = 0x00000004;
+    const SA_SIGINFO: u64 = 0x00000004;
     const SIGSEGV: i32 = 11;
     const SIGBUS: i32 = 7;
-
-    // Linux x86_64: ucontext_t.uc_mcontext.gregs[]
-    const REG_RIP: usize = 16;
-    const REG_RBP: usize = 6;
+    const SIGFPE: i32 = 8;
 
     unsafe extern "C" {
         fn sigaction(sig: i32, act: *const SigAction, old: *mut SigAction) -> i32;
         fn sigaltstack(ss: *const StackT, old: *mut StackT) -> i32;
+        fn backtrace(buffer: *mut *mut c_void, size: i32) -> i32;
         fn backtrace_symbols_fd(buffer: *const *mut c_void, size: i32, fd: i32);
         fn write(fd: i32, buf: *const c_void, n: usize) -> isize;
         fn _exit(code: i32) -> !;
     }
 
-    extern "C" fn on_crash(_sig: i32, _info: *mut c_void, uc: *mut c_void) {
-        const MSG: &[u8] = b"dw1: fatal signal (SIGSEGV or SIGBUS); call stack:\n";
-        let mut frames = [std::ptr::null_mut::<c_void>(); 32];
+    extern "C" fn on_crash(sig: i32, _info: *mut c_void, _uc: *mut c_void) {
+        const MSG: &[u8] = b"dw1: fatal signal; call stack:\n";
+        let mut frames = [std::ptr::null_mut::<c_void>(); 64];
         unsafe {
             write(2, MSG.as_ptr().cast(), MSG.len());
-            // Linux x86_64: ucontext_t.uc_mcontext is at offset 40;
-            // mcontext_t.gregs[] starts at offset 0 of mcontext_t.
-            const UC_MCONTEXT_OFFSET: usize = 40;
-            let mc = uc.cast::<u8>();
-            let gregs = mc.add(UC_MCONTEXT_OFFSET).cast::<*const usize>().read();
-            let reg = |off: usize| *gregs.add(off);
-            frames[0] = reg(REG_RIP) as *mut c_void;
-            frames[1] = reg(REG_RBP) as *mut c_void;
-            let mut n = 2;
-            // Each frame record is (caller's fp, return address).
-            let mut fp = reg(REG_RBP);
-            while n < frames.len() && fp != 0 && fp.is_multiple_of(16) {
-                let next = (fp as *const usize).read();
-                let ret = (fp as *const usize).add(1).read();
-                if ret == 0 {
-                    break;
-                }
-                frames[n] = ret as *mut c_void;
-                n += 1;
-                if next <= fp || next - fp > 8 << 20 {
-                    break;
-                }
-                fp = next;
-            }
-            backtrace_symbols_fd(frames.as_ptr(), n as i32, 2);
-            _exit(139);
+            let n = backtrace(frames.as_mut_ptr(), frames.len() as i32);
+            backtrace_symbols_fd(frames.as_ptr(), n, 2);
+            _exit(128 + sig as i32);
         }
     }
 
@@ -115,12 +90,13 @@ fn install_crash_trace() {
         let act = SigAction {
             sa_sigaction: on_crash,
             sa_mask: 0,
-            sa_flags: (SA_ONSTACK | SA_RESETHAND | SA_SIGINFO) as usize,
+            sa_flags: SA_ONSTACK | SA_RESETHAND | SA_SIGINFO,
             sa_restorer: 0,
         };
         if sigaltstack(&ss, std::ptr::null_mut()) != 0
             || sigaction(SIGSEGV, &act, std::ptr::null_mut()) != 0
             || sigaction(SIGBUS, &act, std::ptr::null_mut()) != 0
+            || sigaction(SIGFPE, &act, std::ptr::null_mut()) != 0
         {
             eprintln!("dw1: DW1_CRASH_TRACE: could not install the handler");
         }
@@ -434,7 +410,11 @@ fn main() {
         || std::env::var_os("DW1_MOVIE").is_some_and(|x| !x.is_empty());
     // An app run (no terminal) writes to a log; the window build shows stops in message boxes.
     let crashed_before = applog::start(!headless);
-    if std::env::var_os("DW1_CRASH_TRACE").is_some() || applog::bundled() {
+    // Enable crash trace by default (DW1_CRASH_TRACE=0 to disable).
+    let enable_crash_trace = std::env::var_os("DW1_CRASH_TRACE")
+        .map(|v| v != "0")
+        .unwrap_or(true);
+    if enable_crash_trace {
         install_crash_trace();
     }
     // The disc before the saves: the slots' text patches (`pc_text`) read it. The window build
