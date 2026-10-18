@@ -28,13 +28,8 @@ pub(super) const BACKGROUND: Rgb = (14, 16, 24);
 /// (text, size in debug-font cells of 8 px, y on the grid, colour).
 const LINES: [(&str, f32, f32, Rgb); 5] = [
     ("Digimon World", 2.0, 78.0, (235, 238, 245)),
-    (
-        "Native Mac build, written in Rust",
-        1.0,
-        114.0,
-        (170, 205, 255),
-    ),
-    ("loafykitten/dw1-silicon", 1.0, 130.0, (140, 148, 168)),
+    ("Native Linux build, written in Rust", 1.0, 114.0, (170, 205, 255)),
+    ("oarsc/dw1-linux", 1.0, 130.0, (140, 148, 168)),
     ("Unofficial fan project", 1.0, 146.0, (100, 108, 126)),
     ("Press any button", 1.0, 204.0, (90, 96, 112)),
 ];
