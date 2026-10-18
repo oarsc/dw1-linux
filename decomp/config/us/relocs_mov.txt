@@ -1,0 +1,10 @@
+rom:0x0001BD84 reloc:MIPS_NONE symbol:NONE
+rom:0x000362A8 reloc:MIPS_NONE symbol:NONE
+rom:0x0005E350 reloc:MIPS_NONE symbol:NONE
+rom:0x00060FF0 reloc:MIPS_NONE symbol:NONE
+rom:0x00060FF8 reloc:MIPS_NONE symbol:NONE
+rom:0x000668B8 reloc:MIPS_NONE symbol:NONE
+rom:0x000694E8 reloc:MIPS_NONE symbol:NONE
+rom:0x00069570 reloc:MIPS_NONE symbol:NONE
+rom:0x000697B0 reloc:MIPS_NONE symbol:NONE
+rom:0x00069A30 reloc:MIPS_NONE symbol:NONE

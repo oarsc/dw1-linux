@@ -1,0 +1,263 @@
+name: main
+sha1: d11336b31aeceec48267062676e9c3f0833ec13f
+options:
+  basename: main
+  target_path: disks/jp/SLPS_017.97
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/jp/main
+  src_path: src/main
+  asset_path: build/jp/psx/generated/assets/main
+  build_path: build
+
+  ld_script_path: build/jp/psx/generated/main.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  gp_value: 0x80144E0C
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/jp/symbols.txt
+    - config/jp/symbols_main.txt
+  reloc_addrs_path:
+    - config/jp/relocs_main.txt
+
+  undefined_funcs_auto_path: build/jp/psx/generated/undefined_funcs_auto_main.txt
+  undefined_syms_auto_path: build/jp/psx/generated/undefined_syms_auto_main.txt
+
+  ld_gp_expression: main_SDATA_START + 0x8000
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+segments:
+  - name: header
+    type: data
+    start: 0x0
+    vram: 0x80090000
+    align: 4
+    subalign: 4
+
+  - name: main
+    type: code
+    start: 0x800
+    vram: 0x80090800
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x800, asm, psyq/libapi]
+      - [0x1378, asm, psyq/libc]
+      - [0x1DA0, asm, psyq/libetc]
+      - [0x2A48, asm, psyq/libgpu]
+      - [0x6F08, asm, psyq/libgs]
+      - [0xA8E0, asm, psyq/libgte]
+      - [0x10D18, c, model]
+      - [0x13FB4, c, world_object]
+      - [0x1443C, c, file]
+      - [0x14A74, c, math]
+      - [0x14DF8, c, graphics]
+      - [0x15604, c, font]
+      - [0x15BCC, c, drop_shadow]
+      - [0x16048, c, _psstart]
+      - [0x16190, c, partner_impl]
+      - [0x1C2F4, c, tamer]
+      - [0x203C8, c, fade]
+      - [0x208B4, c, aabb]
+      - [0x20E40, c, efe]
+      - [0x242CC, asm, psyq/libcd]
+      - [0x28308, c, overworld]
+      - [0x2D9FC, c, game_menu]
+      - [0x38758, c, map_collision]
+      - [0x39084, c, particle]
+      - [0x39950, c, anim]
+      - [0x3AF64, c, ui]
+      - [0x3C720, c, item]
+      - [0x3EEC8, c, sound]
+      - [0x3FEF4, asm, psyq/libspu]
+      - [0x43028, asm, psyq/libsnd]
+      - [0x4BDC8, c, map]
+      - [0x54B98, c, effect_common]
+      - [0x56400, c, inventory]
+      - [0x58F30, c, clock]
+      - [0x59A5C, c, partner]
+      - [0x5C21C, c, script_interp]
+      - [0x61A0C, c, entity_text]
+      - [0x621F4, c, script_textbox]
+      - [0x64DBC, c, script_value]
+      - [0x65860, c, map_object]
+      - [0x688E0, c, script_common]
+      - [0x6F26C, c, evolution]
+      - [0x707DC, c, file_queue]
+      - [0x70ECC, c, line]
+      - [0x71310, c, vecmath]
+      - [0x728EC, c, rng]
+      - [0x729B4, c, fish]
+      - [0x72DFC, c, utils]
+      - [0x737BC, c, utils2]
+      - [0x75268, c, tournament]
+      - [0x7587C, c, evl]
+      - [0x75B80, c, btl]
+      - [0x77970, c, battle_tick]
+      - [0x78514, c, kar]
+      - [0x7855C, c, efe_table]
+      - [0x78668, c, sound_async]
+      - [0x79008, asm, psyq/libpress]
+      - [0x79984, asm, psyq/libds]
+      - [0x799BC, c, butterfly]
+      - [0x79D94, c, main_menu]
+      - [0x81E7C, asm, psyq/libmcrd]
+      - [0x842D8, c, bubble]
+      - [0x84F04, c, battle_ui]
+      - [0x86F48, c, main]
+      - [0x89908, c, new_game]
+      - [0x89C2C, c, buff_model]
+      - [0x89E64, bin, rts_info, discard:True]
+      - [0x89F14, rodata, psyq/libc]
+      - [0x89FF4, rodata, psyq/libetc]
+      - [0x8A0A4, rodata, psyq/libgpu]
+      - [0x8A404, rodata, psyq/libgs]
+      - [0x8A654, .rodata, tamer]
+      - [0x8A700, .rodata, efe]
+      - [0x8A71C, rodata, psyq/libcd]
+      - [0x8AC0C, .rodata, overworld]
+      - [0x8AC70, .rodata, game_menu]
+      - [0x8AD50, .rodata, item]
+      - [0x8AD98, rodata, psyq/libspu]
+      - [0x8AE68, rodata, psyq/libsnd]
+      - [0x8AEF8, .rodata, inventory]
+      - [0x8AF38, .rodata, partner]
+      - [0x8B014, .rodata, script_interp]
+      - [0x8B44C, .rodata, script_textbox]
+      - [0x8B4A4, .rodata, script_value]
+      - [0x8B500, .rodata, map_object]
+      - [0x8B584, .rodata, script_common]
+      - [0x8B5E0, .rodata, vecmath]
+      - [0x8B6E0, rodata, psyq/libpress]
+      - [0x8B730, .rodata, main_menu]
+      - [0x8B7F8, rodata, psyq/libmcrd]
+      - [0x8B998, .rodata, battle_ui]
+      - [0x8B9B0, .rodata, main]
+      - [0x8B9CC, data, psyq/libapi]
+      - [0x8BA0C, data, psyq/libc]
+      - [0x8BA1C, data, psyq/libetc]
+      - [0x8CB4C, data, psyq/libgpu]
+      - [0x8CCE4, data, psyq/libgte]
+      - [0x92178, .data, model]
+      - [0x93498, .data, file_table_jp]
+      - [0x9855C, .data, graphics]
+      - [0x98578, .data, font]
+      - [0x9E298, .data, partner_impl]
+      - [0x9EA70, .data, tamer]
+      - [0x9EB5C, .data, toilet_data]
+      - [0x9EBAC, .data, door_mapdata]
+      - [0x9F0BC, .data, efe]
+      - [0x9F198, data, psyq/libcd]
+      - [0x9F5C0, .data, game_menu]
+      - [0xA0AE0, .data, particle]
+      - [0xA0B64, .data, ui]
+      - [0xA0BD4, .data, item]
+      - [0xA420C, .data, sound]
+      - [0xA43D0, data, psyq/libspu]
+      - [0xA4CB8, data, psyq/libsnd]
+      - [0xA4E30, .data, map]
+      - [0xA640C, .data, effect_common]
+      - [0xA6AFC, .data, inventory]
+      - [0xA6B68, .data, clock]
+      - [0xA6B98, .data, script_interp]
+      - [0xA6BDC, .data, entity_text]
+      - [0xA6BF4, .data, script_value]
+      - [0xA6C8C, .data, map_object]
+      - [0xA6E38, .data, script_common]
+      - [0xA7AF0, .data, evolution]
+      - [0xA881C, .data, utils]
+      - [0xA8870, .data, utils2]
+      - [0xA89D0, .data, tournament]
+      - [0xA89DC, .data, btl]
+      - [0xA8A38, .data, efe_table]
+      - [0xA8A78, .data, sound_async]
+      - [0xA8AD4, data, psyq/libpress]
+      - [0xA9A44, .data, butterfly]
+      - [0xA9A68, .data, main_menu]
+      - [0xAA5D4, data, psyq/libmcrd]
+      - [0xAA5FC, .data, bubble]
+      - [0xAA8D4, .data, main]
+      - [0xACE0C, .sdata, model]
+      - [0xAD3DC, .sdata, file_table_jp]
+      - [0xAD4BC, .sdata, font]
+      - [0xAD4C0, .sdata, partner_impl]
+      - [0xAD4C8, .sdata, tamer]
+      - [0xAD4E0, .sdata, efe]
+      - [0xAD4F0, .sdata, overworld]
+      - [0xAD500, .sdata, game_menu]
+      - [0xAD5DC, .sdata, ui]
+      - [0xAD5E4, .sdata, item]
+      - [0xAD620, .sdata, sound]
+      - [0xAD64C, .sdata, map]
+      - [0xAD698, .sdata, inventory]
+      - [0xAD6A8, .sdata, clock]
+      - [0xAD6B8, .sdata, script_interp]
+      - [0xAD6BC, .sdata, entity_text]
+      - [0xAD6C4, .sdata, script_value]
+      - [0xAD6CC, .sdata, map_object]
+      - [0xAD708, .sdata, script_common]
+      - [0xAD7C4, .sdata, file_queue]
+      - [0xAD7C8, .sdata, rng]
+      - [0xAD7CC, .sdata, utils2]
+      - [0xAD7D4, .sdata, efe_table]
+      - [0xAD7D8, .sdata, sound_async]
+      - [0xAD7F8, .sdata, main_menu]
+      - [0xAD870, .sdata, bubble]
+      - [0xAD8E4, .sdata, battle_ui]
+      - [0xAD900, .sdata, main]
+      - [0xAD914, .sdata, btl/battle_setup]
+      - [0xAD924, .sdata, btl/battle_main]
+      - [0xAD938, .sdata, btl/command_shout]
+      - [0xAD94C, .sdata, btl/command_menu]
+      - [0xAD964, .sdata, btl/battle_hud]
+      - [0xAD9A4, .sdata, btl/battle_effect]
+      - [0xADA24, .sdata, std/std_setup]
+      - [0xADA28, .sdata, std/std_main]
+      - [0xADAD4, .sdata, std/std_hud]
+      - [0xADAF8, .sdata, std/std_effect]
+      - [0xADB6C, .sdata, fish/fish]
+      - [0xADBF0, .sdata, evl/evl]
+      - [0xADC14, .sdata, kar/kar]
+      - [0xADC6C, .sdata, vs/vs_select]
+      - [0xADC98, .sdata, vs/vs_scene]
+      - [0xADCA8, .sdata, vs/vs_intro]
+      - [0xADCC0, .sdata, vs/vs_camera]
+      - [0xADD18, .sdata, vs/vs_combat]
+      - [0xADD30, .sdata, vs/vs_main]
+      - [0xADD48, .sdata, vs/vs_hud]
+      - [0xADD7C, .sdata, vs/vs_effect]
+      - [0xADDF0, .sdata, doo2/doo2]
+      - [0xADE0C, .sdata, dooa/dooa]
+      - [0xADE20, .sdata, trn/trn_reward]
+      - [0xADE28, .sdata, trn/trn_hud]
+      - [0xADE38, .sdata, trn/trn_slots]
+      - [0xADE50, .sdata, shop/script_menu]
+      - [0xADEA8, .sdata, trn2/trn2_hud]
+      - [0xADEB8, .sdata, trn2/trn2_slots]
+      - [0xADED0, .sdata, murd/murd]
+      - [0xADEEC, .sdata, endi/endi]
+      - [0xADEF8, .sdata, eab/eab]
+
+  - [0xADF1C]

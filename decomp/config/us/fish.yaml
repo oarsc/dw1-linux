@@ -1,0 +1,70 @@
+name: fish
+sha1: a0f97d78625419c02a12dbe58a2e884f20d07696
+options:
+  basename: fish
+  target_path: disks/us/FISH_REL.BIN
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/us/fish
+  src_path: src/fish
+  build_path: build
+
+  ld_script_path: build/us/psx/generated/fish.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  find_file_boundaries: True
+  gp_value: 0x8013BB2C
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/us/symbols.txt
+    - config/us/symbols_fish.txt
+  reloc_addrs_path:
+    - config/us/relocs_fish.txt
+
+  undefined_funcs_auto_path: build/us/psx/generated/undefined_funcs_auto_fish.txt
+  undefined_syms_auto_path: build/us/psx/generated/undefined_syms_auto_fish.txt
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+segments:
+  - name: header
+    type: rodata
+    start: 0x0
+    vram: 0x80070000
+    align: 4
+    subalign: 4
+
+  - name: fish
+    type: code
+    start: 0x40
+    vram: 0x80070040
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x40, c, fish]
+      - [0x9F18, c, fish_model]
+      - [0xA160, .rodata, fish]
+      - [0xA1F4, .data, fish]
+      - [0xAB40, .data, fish_bss_us]
+
+  - [0xD96C]

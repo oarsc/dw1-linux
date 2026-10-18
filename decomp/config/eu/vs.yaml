@@ -1,0 +1,125 @@
+name: vs
+sha1: 2627465a888501b113098ca46894e5df1ccd4441
+options:
+  basename: vs
+  target_path: disks/eu/VS_REL.BIN
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/eu/vs
+  src_path: src/vs
+  asset_path: build/eu/psx/generated/assets/vs
+  build_path: build
+
+  ld_script_path: build/eu/psx/generated/vs.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  gp_value: 0x80142BF4
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/eu/symbols.txt
+    - config/eu/symbols_vs.txt
+  reloc_addrs_path:
+    - config/eu/relocs_vs.txt
+
+  undefined_funcs_auto_path: build/eu/psx/generated/undefined_funcs_auto_vs.txt
+  undefined_syms_auto_path: build/eu/psx/generated/undefined_syms_auto_vs.txt
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+  symbol_name_format: $VRAM_vs
+  symbol_name_format_no_rom: $VRAM_vs
+
+segments:
+  - name: texture
+    type: rodata
+    start: 0x0
+    vram: 0x80052AE0
+    align: 4
+    subalign: 4
+
+  - name: model_0
+    type: rodata
+    start: 0xD20
+    vram: 0x80053800
+    align: 4
+    subalign: 4
+
+  - name: model_1
+    type: rodata
+    start: 0x1D58
+    vram: 0x80054838
+    align: 4
+    subalign: 4
+
+  - name: model_2
+    type: rodata
+    start: 0x2220
+    vram: 0x80054D00
+    align: 4
+    subalign: 4
+
+  - name: model_3
+    type: rodata
+    start: 0x2848
+    vram: 0x80055328
+    align: 4
+    subalign: 4
+
+  - name: header
+    type: rodata
+    start: 0x4188
+    vram: 0x80056C68
+    align: 4
+    subalign: 4
+
+  - name: vs
+    type: code
+    start: 0x41C8
+    vram: 0x80056CA8
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x41C8, c, vs_select]
+      - [0x7DD0, c, vs_scene]
+      - [0xAB10, c, vs_intro]
+      - [0xC364, c, vs_camera]
+      - [0xED2C, c, vs_combat]
+      - [0x14A50, c, vs_main]
+      - [0x1A338, c, vs_hud]
+      - [0x1F7BC, c, vs_effect]
+      - [0x30188, .rodata, vs_scene]
+      - [0x301A0, .rodata, vs_intro]
+      - [0x301BC, .rodata, vs_camera]
+      - [0x301E8, .rodata, vs_combat]
+      - [0x30208, .rodata, vs_hud]
+      - [0x30230, .data, vs_select]
+      - [0x304C4, .data, vs_scene]
+      - [0x30A8C, .data, vs_intro]
+      - [0x30AB8, .data, vs_camera]
+      - [0x30B9C, .data, vs_combat]
+      - [0x30BB8, .data, vs_main]
+      - [0x30CBC, .data, vs_hud]
+      - [0x3102C, .data, vs_effect]
+      - [0x31B88, .data, vs_bss_eu]
+
+  - [0x33808]

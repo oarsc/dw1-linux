@@ -1,0 +1,68 @@
+name: murd
+sha1: a0476889d03ae76190d0e237a24c0e14c79466c3
+options:
+  basename: murd
+  target_path: disks/us/MURD_REL.BIN
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/us/murd
+  src_path: src/murd
+  build_path: build
+
+  ld_script_path: build/us/psx/generated/murd.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  find_file_boundaries: True
+  gp_value: 0x8013BB2C
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/us/symbols.txt
+    - config/us/symbols_murd.txt
+  reloc_addrs_path:
+    - config/us/relocs_murd.txt
+
+  undefined_funcs_auto_path: build/us/psx/generated/undefined_funcs_auto_murd.txt
+  undefined_syms_auto_path: build/us/psx/generated/undefined_syms_auto_murd.txt
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+segments:
+  - name: header
+    type: rodata
+    start: 0x0
+    vram: 0x8007C000
+    align: 4
+    subalign: 4
+
+  - name: murd
+    type: code
+    start: 0x40
+    vram: 0x8007C040
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x40, c, murd]
+      - [0x1748, .data, murd]
+      - [0x1820, .data, murd_bss_us]
+
+  - [0x2960]

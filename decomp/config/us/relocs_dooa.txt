@@ -1,0 +1,33 @@
+//rom:0x00000298 reloc:MIPS_HI16 symbol:MAIN_D_80044800
+//rom:0x000002A0 reloc:MIPS_LO16 symbol:MAIN_D_80044800
+rom:0x00000D34 reloc:MIPS_HI16 symbol:DOO2_D_80071EE4
+rom:0x00000D40 reloc:MIPS_LO16 symbol:DOO2_D_80071EE4
+rom:0x00000D44 reloc:MIPS_HI16 symbol:DOO2_D_80071EE4 addend:0x4
+rom:0x00000D48 reloc:MIPS_LO16 symbol:DOO2_D_80071EE4 addend:0x4
+rom:0x00000E08 reloc:MIPS_HI16 symbol:DOO2_D_80071B5C
+rom:0x00000E10 reloc:MIPS_26 symbol:DOO2_saveClutTile
+rom:0x00000E14 reloc:MIPS_LO16 symbol:DOO2_D_80071B5C
+rom:0x00000E1C reloc:MIPS_HI16 symbol:DOO2_D_80071EE4
+rom:0x00000E28 reloc:MIPS_LO16 symbol:DOO2_D_80071EE4
+rom:0x00000E2C reloc:MIPS_HI16 symbol:DOO2_D_80071EE4 addend:0x4
+rom:0x00000E34 reloc:MIPS_LO16 symbol:DOO2_D_80071EE4 addend:0x4
+rom:0x00000E38 reloc:MIPS_HI16 symbol:DOO2_D_80071BE0
+rom:0x00000E3C reloc:MIPS_26 symbol:DOO2_saveModelClut
+rom:0x00000E40 reloc:MIPS_LO16 symbol:DOO2_D_80071BE0
+rom:0x00000EC8 reloc:MIPS_HI16 symbol:DOO2_D_80071BE0
+rom:0x00000ED4 reloc:MIPS_LO16 symbol:DOO2_D_80071BE0
+rom:0x00000EE0 reloc:MIPS_26 symbol:DOO2_fadeClut
+//rom:0x00001014 reloc:MIPS_HI16 symbol:MAIN_D_8008C000 addend:-0x10000
+//rom:0x00001024 reloc:MIPS_LO16 symbol:MAIN_D_8008C000
+//rom:0x00001038 reloc:MIPS_LO16 symbol:MAIN_D_8008E000
+//rom:0x000022B0 reloc:MIPS_HI16 symbol:MAIN_D_80044800
+rom:0x000022B4 reloc:MIPS_26 symbol:DOO2_resetShardSets
+//rom:0x000022B8 reloc:MIPS_LO16 symbol:MAIN_D_80044800
+rom:0x000027B8 reloc:MIPS_HI16 symbol:DOO2_D_80071EE4
+rom:0x000027D4 reloc:MIPS_26 symbol:DOO2_buildShardSet
+rom:0x000027D8 reloc:MIPS_LO16 symbol:DOO2_D_80071EE4
+rom:0x00002868 reloc:MIPS_26 symbol:DOO2_releaseAllShardSets
+rom:0x000028B4 reloc:MIPS_HI16 symbol:DOO2_D_80071EE4 addend:0xc
+rom:0x000028C4 reloc:MIPS_LO16 symbol:DOO2_D_80071EE4 addend:0xc
+rom:0x0000293C reloc:MIPS_26 symbol:DOO2_renderWireframeModel
+rom:0x000029F0 reloc:MIPS_26 symbol:DOO2_renderSparkStreak

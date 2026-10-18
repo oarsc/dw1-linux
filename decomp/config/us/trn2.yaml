@@ -1,0 +1,87 @@
+name: trn2
+sha1: 89868ddca44ab46a0bce0616dacee7b1e6db465f
+options:
+  basename: trn2
+  target_path: disks/us/TRN2_REL.BIN
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/us/trn2
+  src_path: src/trn2
+  build_path: build
+
+  ld_script_path: build/us/psx/generated/trn2.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  find_file_boundaries: True
+  gp_value: 0x8013BB2C
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/us/symbols.txt
+    - config/us/symbols_trn2.txt
+  reloc_addrs_path:
+    - config/us/relocs_trn2.txt
+
+  undefined_funcs_auto_path: build/us/psx/generated/undefined_funcs_auto_trn2.txt
+  undefined_syms_auto_path: build/us/psx/generated/undefined_syms_auto_trn2.txt
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+segments:
+  - name: header
+    type: rodata
+    start: 0x0
+    vram: 0x80088800
+    align: 4
+    subalign: 4
+
+  - name: trn2
+    type: code
+    start: 0x40
+    vram: 0x80088840
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x40, c, trn2_hp_map99]
+      - [0x4C0, c, trn2_def_map99]
+      - [0x934, c, trn2_hp_map107]
+      - [0xEB4, c, trn2_mp]
+      - [0x126C, c, trn2_off]
+      - [0x180C, c, trn2_def_map108]
+      - [0x1E54, c, trn2_reward]
+      - [0x2F6C, c, trn2_hud]
+      - [0x4220, c, trn2_slots]
+      - [0x5130, .rodata, trn2_hp_map107]
+      - [0x5148, .rodata, trn2_hp_map99]
+      - [0x5160, .rodata, trn2_mp]
+      - [0x517C, .rodata, trn2_off]
+      - [0x5198, .rodata, trn2_reward]
+      - [0x51B4, .rodata, trn2_def_map108]
+      - [0x51D0, .rodata, trn2_def_map99]
+      - [0x51EC, .rodata, trn2_hud]
+      - [0x5204, .rodata, trn2_slots]
+      - [0x5220, .data, trn2_off]
+      - [0x52A8, .data, trn2_hud]
+      - [0x53C8, .data, trn2_slots]
+      - [0x541C, .data, trn2_bss_us]
+
+  - [0x54C0]

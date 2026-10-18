@@ -42,4 +42,4 @@ scratchpad/
 __pycache__/
 /target-*/
 
-external/
+./external/

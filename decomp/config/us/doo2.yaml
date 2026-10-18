@@ -1,0 +1,68 @@
+name: doo2
+sha1: 12ec030dfd3d37bfe7ea28fab23e7767bfc6f735
+options:
+  basename: doo2
+  target_path: disks/us/DOO2_REL.BIN
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/us/doo2
+  src_path: src/doo2
+  build_path: build
+
+  ld_script_path: build/us/psx/generated/doo2.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  find_file_boundaries: True
+  gp_value: 0x8013BB2C
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/us/symbols.txt
+    - config/us/symbols_doo2.txt
+  reloc_addrs_path:
+    - config/us/relocs_doo2.txt
+
+  undefined_funcs_auto_path: build/us/psx/generated/undefined_funcs_auto_doo2.txt
+  undefined_syms_auto_path: build/us/psx/generated/undefined_syms_auto_doo2.txt
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+segments:
+  - name: header
+    type: rodata
+    start: 0x0
+    vram: 0x80070000
+    align: 4
+    subalign: 4
+
+  - name: doo2
+    type: code
+    start: 0x40
+    vram: 0x80070040
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x40, c, doo2]
+      - [0x1A80, .data, doo2]
+      - [0x1AE4, .data, doo2_bss_us]
+
+  - [0xB6EC]

@@ -1,0 +1,16 @@
+DGET_D_80080800 = 0x80080800; // size:0x40
+fillEnabledTournamentTable = 0x80080840;
+buildScheduleLabels = 0x800809DC;
+buildScheduleEntries = 0x80080B48;
+initTournamentInfo = 0x80080DD0;
+tournamentCheckFair = 0x80080F7C;
+isTournamentEnabled = 0x80080FEC;
+tournamentCheckEligible = 0x8008121C;
+renderTournamentTextbox = 0x8008128C;
+tickTournamentSchedule = 0x80081344;
+renderTournamentSchedule = 0x800815CC;
+tickTournamentInfo = 0x80081928;
+renderTournamentInfo = 0x800819A4;
+initTournamentSchedule = 0x80081A80;
+DGET_jtbl_80081CCC = 0x80081CCC; // align:0x4
+DGET_D_80081CE8 = 0x80081CE8; // size:0xB

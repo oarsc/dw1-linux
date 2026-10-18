@@ -1,0 +1,110 @@
+name: std
+sha1: dd623f866fb526299ef750f0a43f6610f0474e54
+options:
+  basename: std
+  target_path: disks/us/STD_REL.BIN
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/us/std
+  src_path: src/std
+  build_path: build
+
+  ld_script_path: build/us/psx/generated/std.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  find_file_boundaries: True
+  gp_value: 0x8013BB2C
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/us/symbols.txt
+    - config/us/symbols_std.txt
+  reloc_addrs_path:
+    - config/us/relocs_std.txt
+
+  undefined_funcs_auto_path: build/us/psx/generated/undefined_funcs_auto_std.txt
+  undefined_syms_auto_path: build/us/psx/generated/undefined_syms_auto_std.txt
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+segments:
+  - name: texture
+    type: rodata
+    start: 0x0
+    vram: 0x80052AE0
+    align: 4
+    subalign: 4
+
+  - name: model_0
+    type: rodata
+    start: 0xD20
+    vram: 0x80053800
+    align: 4
+    subalign: 4
+
+  - name: model_1
+    type: rodata
+    start: 0x1D58
+    vram: 0x80054838
+    align: 4
+    subalign: 4
+
+  - name: model_2
+    type: rodata
+    start: 0x2220
+    vram: 0x80054D00
+    align: 4
+    subalign: 4
+
+  - name: model_3
+    type: rodata
+    start: 0x2848
+    vram: 0x80055328
+    align: 4
+    subalign: 4
+
+  - name: header
+    type: rodata
+    start: 0x4188
+    vram: 0x80056C68
+    align: 4
+    subalign: 4
+
+  - name: std
+    type: code
+    start: 0x41C8
+    vram: 0x80056CA8
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x41C8, c, std_setup]
+      - [0x59B4, c, std_main]
+      - [0x16654, c, std_hud]
+      - [0x194D4, c, std_effect]
+      - [0x26E0C, .rodata, std_main]
+      - [0x26ED4, .data, std_setup]
+      - [0x271DC, .data, std_main]
+      - [0x27C38, .data, std_hud]
+      - [0x28038, .data, std_effect]
+      - [0x28B84, .data, std_bss_us]
+
+  - [0x2D3E8]

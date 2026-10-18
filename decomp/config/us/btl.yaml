@@ -1,0 +1,113 @@
+name: btl
+sha1: 0b6730efc0f337f8f7e2e74f46f65010a6d47344
+options:
+  basename: btl
+  target_path: disks/us/BTL_REL.BIN
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/us/btl
+  src_path: src/btl
+  build_path: build
+
+  ld_script_path: build/us/psx/generated/btl.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  find_file_boundaries: True
+  gp_value: 0x8013BB2C
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/us/symbols.txt
+    - config/us/symbols_btl.txt
+  reloc_addrs_path:
+    - config/us/relocs_btl.txt
+
+  undefined_funcs_auto_path: build/us/psx/generated/undefined_funcs_auto_btl.txt
+  undefined_syms_auto_path: build/us/psx/generated/undefined_syms_auto_btl.txt
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+segments:
+  - name: texture
+    type: rodata
+    start: 0x0
+    vram: 0x80052AE0
+    align: 4
+    subalign: 4
+
+  - name: model_0
+    type: rodata
+    start: 0xD20
+    vram: 0x80053800
+    align: 4
+    subalign: 4
+
+  - name: model_1
+    type: rodata
+    start: 0x1D58
+    vram: 0x80054838
+    align: 4
+    subalign: 4
+
+  - name: model_2
+    type: rodata
+    start: 0x2220
+    vram: 0x80054D00
+    align: 4
+    subalign: 4
+
+  - name: model_3
+    type: rodata
+    start: 0x2848
+    vram: 0x80055328
+    align: 4
+    subalign: 4
+
+  - name: header
+    type: rodata
+    start: 0x4188
+    vram: 0x80056C68
+    align: 4
+    subalign: 4
+
+  - name: btl
+    type: code
+    start: 0x41C8
+    vram: 0x80056CA8
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x41C8, c, battle_setup]
+      - [0x50F0, c, battle_main]
+      - [0xE51C, c, command_shout]
+      - [0xE94C, c, command_menu]
+      - [0xFDD4, c, battle_hud]
+      - [0x11FA0, c, battle_effect]
+      - [0x20280, .rodata, battle_main]
+      - [0x20294, .rodata, battle_setup]
+      - [0x202B0, .rodata, command_menu]
+      - [0x202CC, .data, command_shout]
+      - [0x20374, .data, command_menu]
+      - [0x20418, .data, battle_effect]
+      - [0x21374, .data, btl_bss_us]
+
+  - [0x2349C]

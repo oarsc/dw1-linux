@@ -1,0 +1,371 @@
+rom:0x00000010 reloc:MIPS_32 symbol:__start
+rom:0x00000018 reloc:MIPS_32 symbol:main_TEXT_START
+rom:0x0000001C reloc:MIPS_32 symbol:main_ROM_SIZE
+rom:0x00000028 reloc:MIPS_32 symbol:main_SBSS_START
+rom:0x0000002C reloc:MIPS_32 symbol:main_MEMFILL_ALIGNED_SIZE
+rom:0x00000B34 reloc:MIPS_HI16 symbol:_start_pad
+rom:0x00000B38 reloc:MIPS_LO16 symbol:_start_pad
+rom:0x00000B48 reloc:MIPS_HI16 symbol:_stop_pad
+rom:0x00000B4C reloc:MIPS_LO16 symbol:_stop_pad
+rom:0x00000B88 reloc:MIPS_HI16 symbol:_start_pad
+rom:0x00000B8C reloc:MIPS_LO16 symbol:_start_pad
+rom:0x00000B94 reloc:MIPS_HI16 symbol:_stop_pad
+rom:0x00000B98 reloc:MIPS_LO16 symbol:_stop_pad
+rom:0x0000A6C8 reloc:MIPS_HI16 symbol:rsin_tbl addend:-0x1000
+rom:0x0000A6D0 reloc:MIPS_LO16 symbol:rsin_tbl addend:-0x1000
+rom:0x0000A72C reloc:MIPS_HI16 symbol:rsin_tbl addend:-0x800
+rom:0x0000A734 reloc:MIPS_LO16 symbol:rsin_tbl addend:-0x800
+rom:0x0000A750 reloc:MIPS_HI16 symbol:rsin_tbl addend:-0x1800
+rom:0x0000A758 reloc:MIPS_LO16 symbol:rsin_tbl addend:-0x1800
+rom:0x00019A50 reloc:MIPS_26 symbol:STD_tickTamerTournament
+rom:0x00019D74 reloc:MIPS_26 symbol:KAR_tick
+rom:0x0001ACE0 reloc:MIPS_26 symbol:ENDI_tickEnding
+rom:0x0001ACFC reloc:MIPS_26 symbol:ENDI_tickEnding
+rom:0x0001AD64 reloc:MIPS_26 symbol:MURD_tick
+rom:0x0001AD80 reloc:MIPS_26 symbol:MURD_tick
+rom:0x0001ADAC reloc:MIPS_26 symbol:DOOA_tick
+rom:0x0001ADFC reloc:MIPS_26 symbol:EAB_tick
+rom:0x0001AE18 reloc:MIPS_26 symbol:EAB_tick
+rom:0x0001AE80 reloc:MIPS_26 symbol:MURD_tick
+rom:0x0001AE9C reloc:MIPS_26 symbol:MURD_tick
+rom:0x0001BAC4 reloc:MIPS_26 symbol:BTL_battleMain
+rom:0x000263AC reloc:MIPS_26 symbol:STD_tickNPCTournament
+rom:0x00034778 reloc:MIPS_26 symbol:BTL_healStatusEffect
+rom:0x00034798 reloc:MIPS_26 symbol:BTL_healStatusEffect
+rom:0x00034854 reloc:MIPS_26 symbol:BTL_removeDeathCountdown
+rom:0x000348D0 reloc:MIPS_26 symbol:BTL_healStatusEffect
+rom:0x00035F2C reloc:MIPS_NONE symbol:NONE
+rom:0x00035F30 reloc:MIPS_NONE symbol:NONE
+rom:0x00035F34 reloc:MIPS_NONE symbol:NONE
+rom:0x00037BEC reloc:MIPS_HI16 symbol:_spu_RQ addend:-0x188
+rom:0x00037BF0 reloc:MIPS_LO16 symbol:_spu_RQ addend:-0x188
+rom:0x00037C74 reloc:MIPS_HI16 symbol:_spu_RQ addend:-0x188
+rom:0x00037C78 reloc:MIPS_LO16 symbol:_spu_RQ addend:-0x188
+rom:0x00037D30 reloc:MIPS_HI16 symbol:_spu_RQ addend:-0x188
+rom:0x00037D34 reloc:MIPS_LO16 symbol:_spu_RQ addend:-0x188
+rom:0x00037E04 reloc:MIPS_HI16 symbol:_spu_RQ addend:-0x188
+rom:0x00037E08 reloc:MIPS_LO16 symbol:_spu_RQ addend:-0x188
+rom:0x0004D850 reloc:MIPS_26 symbol:STD_tickPartnerTournament
+rom:0x0004E7BC reloc:MIPS_26 symbol:DOOA_tick
+rom:0x0004E800 reloc:MIPS_26 symbol:DOOA_tick
+rom:0x0004EC30 reloc:MIPS_26 symbol:DOOA_getSequenceState
+rom:0x0004EC48 reloc:MIPS_26 symbol:DOOA_getSequenceState
+rom:0x0004F5E8 reloc:MIPS_HI16 symbol:PARTNER_ENTITY
+rom:0x0004F5F0 reloc:MIPS_LO16 symbol:PARTNER_ENTITY
+rom:0x0004F634 reloc:MIPS_26 symbol:KAR_start
+rom:0x0005113C reloc:MIPS_HI16 symbol:MEDAL_COORDINATES
+rom:0x00051150 reloc:MIPS_LO16 symbol:MEDAL_COORDINATES
+rom:0x00054E10 reloc:MIPS_26 symbol:FISH_loadFishing
+rom:0x00054E4C reloc:MIPS_26 symbol:FISH_tamerTick
+rom:0x00054EC8 reloc:MIPS_26 symbol:FISH_deinitialize
+rom:0x00054F3C reloc:MIPS_HI16 symbol:FISHING_MAP_DATA
+rom:0x00054F40 reloc:MIPS_LO16 symbol:FISHING_MAP_DATA
+rom:0x00054F6C reloc:MIPS_HI16 symbol:FISHING_DATA
+rom:0x00054F70 reloc:MIPS_LO16 symbol:FISHING_DATA
+rom:0x00054FB0 reloc:MIPS_HI16 symbol:FISHING_MAP_DATA
+rom:0x00054FC4 reloc:MIPS_LO16 symbol:FISHING_MAP_DATA
+rom:0x00054FD4 reloc:MIPS_26 symbol:FISH_init
+rom:0x000562B0 reloc:MIPS_26 symbol:MOV_playMovie
+rom:0x000565EC reloc:MIPS_NONE symbol:NONE
+rom:0x000565D4 reloc:MIPS_NONE symbol:NONE
+rom:0x0005668C reloc:MIPS_NONE symbol:NONE
+rom:0x00056C14 reloc:MIPS_26 symbol:STD_tournamentMain
+rom:0x000572D8 reloc:MIPS_26 symbol:EVL_initEvoSequence
+rom:0x00057854 reloc:MIPS_26 symbol:BTL_initializeBattleItemParticles
+rom:0x0005785C reloc:MIPS_26 symbol:BTL_initializeUnk3
+rom:0x00057864 reloc:MIPS_26 symbol:BTL_initializeUnk2
+rom:0x00057874 reloc:MIPS_26 symbol:BTL_initializeFinisherAuraModel
+rom:0x0005789C reloc:MIPS_26 symbol:BTL_initializePoisonBubble
+rom:0x000578A8 reloc:MIPS_26 symbol:BTL_initializeConfusionEffect
+rom:0x000578D4 reloc:MIPS_26 symbol:BTL_initializeStunEffect
+rom:0x00057934 reloc:MIPS_26 symbol:BTL_initializeEFEEngine
+rom:0x00057A68 reloc:MIPS_26 symbol:BTL_loadMoveEFE
+rom:0x00057DC4 reloc:MIPS_HI16 symbol:MAIN_func_800E7DEC
+rom:0x00057DE8 reloc:MIPS_LO16 symbol:MAIN_func_800E7DEC
+rom:0x00058C08 reloc:MIPS_HI16 symbol:loadSoundCompleteCallback
+rom:0x00058C14 reloc:MIPS_LO16 symbol:loadSoundCompleteCallback
+rom:0x0005C270 reloc:MIPS_NONE symbol:NONE
+rom:0x0005C274 reloc:MIPS_NONE symbol:NONE
+rom:0x0005C284 reloc:MIPS_NONE symbol:NONE
+rom:0x0005C288 reloc:MIPS_NONE symbol:NONE
+rom:0x0005D588 reloc:MIPS_26 symbol:BTL_appendMoveLearnedText
+rom:0x0005D5CC reloc:MIPS_HI16 symbol:BTL_END_BOX_TEXTBUFFER
+rom:0x0005D5D0 reloc:MIPS_LO16 symbol:BTL_END_BOX_TEXTBUFFER
+rom:0x0005D7BC reloc:MIPS_26 symbol:BTL_initializeBattleEndText
+rom:0x0005D808 reloc:MIPS_26 symbol:BTL_appendItemDroppedText
+rom:0x0005D898 reloc:MIPS_26 symbol:BTL_appendInjuredText
+rom:0x0005D8A0 reloc:MIPS_26 symbol:BTL_appendCommandLearnedText
+rom:0x0005D8A8 reloc:MIPS_26 symbol:BTL_appendMPBonusText
+rom:0x0005D8F8 reloc:MIPS_26 symbol:BTL_battleTickFrame
+rom:0x0005D908 reloc:MIPS_HI16 symbol:BTL_END_BOX_TEXTBUFFER
+rom:0x0005D90C reloc:MIPS_LO16 symbol:BTL_END_BOX_TEXTBUFFER
+rom:0x0005D924 reloc:MIPS_26 symbol:BTL_drawBattleEndText
+rom:0x0005D92C reloc:MIPS_26 symbol:BTL_battleTickFrame
+rom:0x0005D9A4 reloc:MIPS_26 symbol:BTL_battleTickFrame
+rom:0x0005D9DC reloc:MIPS_26 symbol:BTL_battleTickFrame
+rom:0x0005D9FC reloc:MIPS_26 symbol:BTL_battleTickFrame
+rom:0x0005DA10 reloc:MIPS_26 symbol:BTL_isEndBoxTextFinished
+rom:0x0005DA20 reloc:MIPS_26 symbol:BTL_battleTickFrame
+rom:0x0005DAF0 reloc:MIPS_26 symbol:BTL_tickBattleEndText
+rom:0x0005DCB8 reloc:MIPS_HI16 symbol:BTL_END_BOX_TEXTBUFFER
+rom:0x0005DCBC reloc:MIPS_LO16 symbol:BTL_END_BOX_TEXTBUFFER
+rom:0x0005DD14 reloc:MIPS_26 symbol:BTL_renderBattleEndText
+rom:0x000606C4 reloc:MIPS_26 symbol:BTL_addItemParticles
+rom:0x000606E4 reloc:MIPS_HI16 symbol:TAMER_ITEM
+rom:0x000606EC reloc:MIPS_LO16 symbol:TAMER_ITEM
+rom:0x00060890 reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x000608F4 reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x00060958 reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x00060988 reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x000609B0 reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x000609D8 reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x00060A3C reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x00060AA0 reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x00060B04 reloc:MIPS_26 symbol:BTL_buffStats
+rom:0x00060B14 reloc:MIPS_26 symbol:BTL_addBuffDiskEffect
+rom:0x00060D3C reloc:MIPS_26 symbol:BTL_getRemainingEnemies
+rom:0x00060F88 reloc:MIPS_26 symbol:BTL_drawCommandShout
+rom:0x00061008 reloc:MIPS_26 symbol:BTL_drawCommandShout
+rom:0x00061070 reloc:MIPS_HI16 symbol:ENTITY_TABLE
+rom:0x00061084 reloc:MIPS_LO16 symbol:ENTITY_TABLE
+rom:0x0006187C reloc:MIPS_HI16 symbol:MAIN_func_800F1794
+rom:0x00061894 reloc:MIPS_LO16 symbol:MAIN_func_800F1794
+rom:0x00061DD0 reloc:MIPS_HI16 symbol:VS_INTRO_TARGET_POS
+rom:0x00061DD4 reloc:MIPS_LO16 symbol:VS_INTRO_TARGET_POS
+rom:0x00061DDC reloc:MIPS_HI16 symbol:VS_INTRO_TARGET_POS addend:0x4
+rom:0x00061DE0 reloc:MIPS_LO16 symbol:VS_INTRO_TARGET_POS addend:0x4
+rom:0x00061DE4 reloc:MIPS_HI16 symbol:VS_INTRO_TARGET_POS addend:0x8
+rom:0x00061DE8 reloc:MIPS_LO16 symbol:VS_INTRO_TARGET_POS addend:0x8
+rom:0x00061DEC reloc:MIPS_HI16 symbol:VS_INTRO_TARGET_POS addend:0xc
+rom:0x00061DF0 reloc:MIPS_LO16 symbol:VS_INTRO_TARGET_POS addend:0xc
+rom:0x00061E04 reloc:MIPS_HI16 symbol:VS_INTRO_TARGET_POS
+rom:0x00061E08 reloc:MIPS_LO16 symbol:VS_INTRO_TARGET_POS
+rom:0x00061E18 reloc:MIPS_HI16 symbol:VS_INTRO_TARGET_POS addend:0x4
+rom:0x00061E1C reloc:MIPS_LO16 symbol:VS_INTRO_TARGET_POS addend:0x4
+rom:0x00061E2C reloc:MIPS_HI16 symbol:VS_INTRO_TARGET_POS addend:0x8
+rom:0x00061E30 reloc:MIPS_LO16 symbol:VS_INTRO_TARGET_POS addend:0x8
+rom:0x00062420 reloc:MIPS_26 symbol:VS_startCameraChase
+rom:0x00062468 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00062490 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x0006250C reloc:MIPS_26 symbol:VS_startCameraChase
+rom:0x00062560 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00062D00 reloc:MIPS_HI16 symbol:VS__INTRO_DIGIMON_NAMES
+rom:0x00062D08 reloc:MIPS_LO16 symbol:VS__INTRO_DIGIMON_NAMES
+rom:0x00062E08 reloc:MIPS_HI16 symbol:VS__INTRO_DIGIMON_NAMES
+rom:0x00062E0C reloc:MIPS_LO16 symbol:VS__INTRO_DIGIMON_NAMES
+rom:0x00062EA4 reloc:MIPS_26 symbol:VS_addFighterCounter
+rom:0x00063040 reloc:MIPS_26 symbol:VS_addFighterStatusBars
+rom:0x00063048 reloc:MIPS_26 symbol:VS_addFighterStatusBars
+rom:0x000634D0 reloc:MIPS_26 symbol:VS_addCommandMenu
+rom:0x000634D8 reloc:MIPS_26 symbol:VS_addCommandMenu
+rom:0x0006356C reloc:MIPS_26 symbol:VS_initializeEFEEngine
+rom:0x0006365C reloc:MIPS_26 symbol:VS_loadMoveEFE
+rom:0x0006368C reloc:MIPS_26 symbol:VS_initializeBattleStartText
+rom:0x000636CC reloc:MIPS_26 symbol:VS_isBattleStartTextFinished
+rom:0x000636D4 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x000636F0 reloc:MIPS_26 symbol:VS_removeBattleStartText
+rom:0x000636F8 reloc:MIPS_26 symbol:VS_initializeBattleStartTextBurst
+rom:0x00063730 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00063738 reloc:MIPS_26 symbol:VS_isBattleStartTextFinished
+rom:0x00063748 reloc:MIPS_26 symbol:VS_removeBattleStartTextBurst
+rom:0x00063DE4 reloc:MIPS_26 symbol:VS_selectRandomCamera
+rom:0x00063E48 reloc:MIPS_26 symbol:VS_removeStatusEffects
+rom:0x00063EE4 reloc:MIPS_26 symbol:VS_isMoveUsable
+rom:0x00063F54 reloc:MIPS_26 symbol:VS_setupQueuedMove
+rom:0x00063F94 reloc:MIPS_26 symbol:VS_applyChargeRequirement
+rom:0x00063FD8 reloc:MIPS_26 symbol:VS_setupQueuedMove
+rom:0x00064018 reloc:MIPS_26 symbol:VS_applyChargeRequirement
+rom:0x000640D0 reloc:MIPS_26 symbol:VS_queueRandomMove
+rom:0x00064160 reloc:MIPS_26 symbol:VS_selectMoveByPower
+rom:0x000641A0 reloc:MIPS_26 symbol:VS_selectMoveByMpCost
+rom:0x000641C4 reloc:MIPS_26 symbol:VS_selectPartnerMove
+rom:0x000641DC reloc:MIPS_26 symbol:VS_setupQueuedMove
+rom:0x00064290 reloc:MIPS_26 symbol:VS_addFinisherProgress
+rom:0x00064430 reloc:MIPS_26 symbol:VS_resolveAttack
+rom:0x00064438 reloc:MIPS_26 symbol:VS_applyMoveResult
+rom:0x000644C8 reloc:MIPS_26 symbol:VS_setRandomViewpoint
+rom:0x000646FC reloc:MIPS_26 symbol:VS_removeStatusEffects
+rom:0x00064764 reloc:MIPS_26 symbol:VS_loadVersusSceneModel
+rom:0x0006476C reloc:MIPS_26 symbol:VS_addVersusModelScene
+rom:0x0006477C reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00064784 reloc:MIPS_26 symbol:VS_isVersusModelSceneFinished
+rom:0x00064794 reloc:MIPS_26 symbol:VS_removeVersusModelScene
+rom:0x00064848 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x000648E4 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x000648FC reloc:MIPS_26 symbol:VS_removeFighterStatusBars
+rom:0x00064904 reloc:MIPS_26 symbol:VS_removeFighterStatusBars
+rom:0x0006490C reloc:MIPS_26 symbol:VS_removeCommandMenu
+rom:0x00064914 reloc:MIPS_26 symbol:VS_removeCommandMenu
+rom:0x0006491C reloc:MIPS_26 symbol:VS_removeFighterCounter
+rom:0x00064AE8 reloc:MIPS_26 symbol:VS_removeAllStunEffects
+rom:0x00064AF0 reloc:MIPS_26 symbol:VS_removeAllFinisherAuras
+rom:0x00064AF8 reloc:MIPS_26 symbol:VS_removeAllPoisonEffects
+rom:0x00064B00 reloc:MIPS_26 symbol:VS_removeAllAuraProjectiles
+rom:0x00064B3C reloc:MIPS_26 symbol:VS_removeMoveEffect
+rom:0x00064B60 reloc:MIPS_26 symbol:VS_unloadAllEFESlots
+rom:0x00064B68 reloc:MIPS_26 symbol:VS_removeEFEEngine
+rom:0x00064D64 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00064D6C reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00064D74 reloc:MIPS_26 symbol:VS_loadVersusSceneModel
+rom:0x00064DA8 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00064DE0 reloc:MIPS_26 symbol:VS_addVersusModelScene
+rom:0x00064DF0 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00064DF8 reloc:MIPS_26 symbol:VS_isVersusModelSceneFinished
+rom:0x00064E08 reloc:MIPS_26 symbol:VS_removeVersusModelScene
+rom:0x00064F08 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00064F3C reloc:MIPS_26 symbol:VS_selectRandomCamera
+rom:0x00064FA8 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP
+rom:0x00064FB0 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP
+rom:0x00064FD0 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0x5
+rom:0x00064FD4 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0x5
+rom:0x00065168 reloc:MIPS_26 symbol:VS_removeStatusEffects
+rom:0x00065198 reloc:MIPS_26 symbol:VS_resetFighterAction
+rom:0x0006559C reloc:MIPS_26 symbol:VS_startFighterMove
+rom:0x00065658 reloc:MIPS_26 symbol:VS_startFighterMove
+rom:0x00065B28 reloc:MIPS_26 symbol:VS_startFighterMove
+rom:0x00065C6C reloc:MIPS_26 symbol:VS_getDistanceSquared
+rom:0x00065D3C reloc:MIPS_26 symbol:VS_getDistanceSquared
+rom:0x00065E5C reloc:MIPS_26 symbol:VS_addTargetCursor
+rom:0x00065E80 reloc:MIPS_26 symbol:VS_addFinisherAura
+rom:0x00065EA0 reloc:MIPS_26 symbol:VS_selectMoveTarget
+rom:0x00065ED8 reloc:MIPS_26 symbol:VS_playMoveEffect
+rom:0x00065F88 reloc:MIPS_26 symbol:VS_playMoveEffect
+rom:0x00066094 reloc:MIPS_26 symbol:VS_startFighterMove
+rom:0x000660A8 reloc:MIPS_26 symbol:VS_getDistanceSquared
+rom:0x00066218 reloc:MIPS_26 symbol:VS_startFighterMove
+rom:0x00066244 reloc:MIPS_26 symbol:VS_startFighterMove
+rom:0x00066790 reloc:MIPS_26 symbol:VS_addAuraProjectile
+rom:0x00066870 reloc:MIPS_26 symbol:VS_addFinisherProgress
+rom:0x00066A88 reloc:MIPS_26 symbol:VS_getDistanceSquared
+rom:0x00066CDC reloc:MIPS_26 symbol:VS_isMoveUsable
+rom:0x000671EC reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00067268 reloc:MIPS_26 symbol:VS_removeResultModelScene
+rom:0x00067B54 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP
+rom:0x00067B58 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP
+rom:0x00067B68 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0x5
+rom:0x00067B6C reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0x5
+rom:0x00067D40 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00067D60 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00067D8C reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x00067DD8 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP
+rom:0x00067DE0 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP
+rom:0x00067DE4 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0x5
+rom:0x00067DE8 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0x5
+rom:0x00067DEC reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00067DF0 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00067E88 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00067E8C reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00067ED8 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00067EDC reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00068108 reloc:MIPS_26 symbol:VS_initializeVS
+rom:0x00068174 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP
+rom:0x0006817C reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP
+rom:0x00068180 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0x5
+rom:0x00068184 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0x5
+rom:0x000684FC reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00068500 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00068518 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x0006851C reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00068608 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x0006860C reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00069080 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00069084 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x00069328 reloc:MIPS_HI16 symbol:VS_FONT_CHARS
+rom:0x0006932C reloc:MIPS_LO16 symbol:VS_FONT_CHARS
+rom:0x00069364 reloc:MIPS_HI16 symbol:VS_FONT_GLYPHS
+rom:0x0006936C reloc:MIPS_LO16 symbol:VS_FONT_GLYPHS
+rom:0x00069608 reloc:MIPS_HI16 symbol:VS_FONT_CHARS
+rom:0x0006960C reloc:MIPS_LO16 symbol:VS_FONT_CHARS
+rom:0x00069670 reloc:MIPS_HI16 symbol:VS_FONT_GLYPHS
+rom:0x00069678 reloc:MIPS_LO16 symbol:VS_FONT_GLYPHS
+rom:0x00069714 reloc:MIPS_HI16 symbol:VS_FONT_GLYPHS
+rom:0x0006971C reloc:MIPS_LO16 symbol:VS_FONT_GLYPHS
+rom:0x000697B0 reloc:MIPS_HI16 symbol:VS_FONT_GLYPHS
+rom:0x000697C0 reloc:MIPS_LO16 symbol:VS_FONT_GLYPHS
+rom:0x00069FE0 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x0006A000 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x0006A028 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x0006A050 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x0006A054 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xb
+rom:0x0006A530 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x0006A550 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x0006A578 reloc:MIPS_26 symbol:VS_tickFrame
+rom:0x0006A594 reloc:MIPS_HI16 symbol:VS_BATTLE_SETUP addend:0xa
+rom:0x0006A598 reloc:MIPS_LO16 symbol:VS_BATTLE_SETUP addend:0xa
+rom:0x0006BC74 reloc:MIPS_HI16 symbol:UI_BOX_DATA addend:0x50
+rom:0x0006BC78 reloc:MIPS_LO16 symbol:UI_BOX_DATA addend:0x50
+rom:0x00073F60 reloc:MIPS_26 symbol:TRN2_func_80089134
+rom:0x00073F70 reloc:MIPS_26 symbol:TRN2_func_80089A6C
+rom:0x00073F80 reloc:MIPS_26 symbol:TRN2_func_8008A654
+rom:0x00073F90 reloc:MIPS_26 symbol:TRN2_func_8008A00C
+rom:0x00073FA0 reloc:MIPS_26 symbol:TRN2_func_800896B4
+rom:0x00073FE4 reloc:MIPS_26 symbol:TRN_func_8008AAF0
+rom:0x00073FF4 reloc:MIPS_26 symbol:TRN_func_8008B5E8
+rom:0x00074004 reloc:MIPS_26 symbol:TRN_func_8008CA04
+rom:0x00074014 reloc:MIPS_26 symbol:TRN_func_8008C068
+rom:0x00074024 reloc:MIPS_26 symbol:TRN_func_8008B0D0
+rom:0x00074034 reloc:MIPS_26 symbol:TRN_func_8008CE90
+rom:0x00074158 reloc:MIPS_26 symbol:DOO2_func_8007189C
+rom:0x00074424 reloc:MIPS_26 symbol:EAB_func_8006148C
+rom:0x00075DDC reloc:MIPS_26 symbol:initTournamentSchedule
+rom:0x00075E4C reloc:MIPS_26 symbol:DOO2_func_80071934
+rom:0x00083A64 reloc:MIPS_32 symbol:_gp
+rom:0x00083A68 reloc:MIPS_32 symbol:main_SBSS_SIZE
+rom:0x00083A6C reloc:MIPS_32 symbol:main_BSS_SIZE
+rom:0x00083A70 reloc:MIPS_32 symbol:main_SDATA_SIZE
+rom:0x00083A74 reloc:MIPS_32 symbol:main_DATA_SIZE
+rom:0x00083A78 reloc:MIPS_32 symbol:main_RODATA_SIZE
+rom:0x00083A7C reloc:MIPS_32 symbol:main_SBSS_START
+rom:0x00083A80 reloc:MIPS_32 symbol:main_BSS_START
+rom:0x00083A84 reloc:MIPS_32 symbol:main_SDATA_START
+rom:0x00083A88 reloc:MIPS_32 symbol:main_DATA_START
+rom:0x00083A8C reloc:MIPS_32 symbol:main_RODATA_START
+rom:0x00083A90 reloc:MIPS_32 symbol:FlushCache
+rom:0x00083A94 reloc:MIPS_32 symbol:FlushCache
+rom:0x00083A98 reloc:MIPS_32 symbol:FlushCache
+rom:0x00083AAC reloc:MIPS_32 symbol:main_RODATA_START
+rom:0x00083AB0 reloc:MIPS_32 symbol:main_SBSS_START
+rom:0x00083AB4 reloc:MIPS_32 symbol:main_BSS_END
+rom:0x00083AB8 reloc:MIPS_32 symbol:main_SDATA_START
+rom:0x00083ABC reloc:MIPS_32 symbol:main_DATA_START
+rom:0x00083AC0 reloc:MIPS_32 symbol:main_SDATA_SIZE
+rom:0x00083AC4 reloc:MIPS_32 symbol:main_DATA_SIZE
+rom:0x00083ACC reloc:MIPS_32 symbol:main_TEXT_START
+rom:0x00083AD0 reloc:MIPS_32 symbol:btl_HEADER
+rom:0x00083AD4 reloc:MIPS_32 symbol:std_HEADER
+rom:0x00083AD8 reloc:MIPS_32 symbol:fish_HEADER
+rom:0x00083ADC reloc:MIPS_32 symbol:evl_HEADER
+rom:0x00083AE0 reloc:MIPS_32 symbol:kar_HEADER
+rom:0x00083AE4 reloc:MIPS_32 symbol:vs_HEADER
+rom:0x00083AE8 reloc:MIPS_32 symbol:mov_HEADER
+rom:0x00083AEC reloc:MIPS_32 symbol:doo2_HEADER
+rom:0x00083AF0 reloc:MIPS_32 symbol:dooa_HEADER
+rom:0x00083AF4 reloc:MIPS_32 symbol:trn_HEADER
+rom:0x00083AF8 reloc:MIPS_32 symbol:dget_HEADER
+rom:0x00083AFC reloc:MIPS_32 symbol:trn2_HEADER
+rom:0x00083B00 reloc:MIPS_32 symbol:murd_HEADER
+rom:0x00083B04 reloc:MIPS_32 symbol:endi_HEADER
+rom:0x00083B08 reloc:MIPS_32 symbol:eab_HEADER
+rom:0x0009B96C reloc:MIPS_32 symbol:btl_START
+rom:0x0009B970 reloc:MIPS_32 symbol:std_START
+rom:0x0009B974 reloc:MIPS_32 symbol:fish_START
+rom:0x0009B978 reloc:MIPS_32 symbol:evl_START
+rom:0x0009B97C reloc:MIPS_32 symbol:kar_START
+rom:0x0009B980 reloc:MIPS_32 symbol:vs_START
+rom:0x0009B984 reloc:MIPS_32 symbol:mov_START
+rom:0x0009B988 reloc:MIPS_32 symbol:doo2_START
+rom:0x0009B98C reloc:MIPS_32 symbol:dooa_START
+rom:0x0009B990 reloc:MIPS_32 symbol:trn_START
+//rom:0x0009B994 reloc:MIPS_32 symbol:SHOP_D_80080800
+rom:0x0009B998 reloc:MIPS_32 symbol:dget_START
+rom:0x0009B99C reloc:MIPS_32 symbol:trn2_START
+rom:0x0009B9A0 reloc:MIPS_32 symbol:murd_START
+rom:0x0009B9A4 reloc:MIPS_32 symbol:endi_START
+rom:0x0009B9A8 reloc:MIPS_32 symbol:eab_START
+rom:0x000A44F4 reloc:MIPS_NONE symbol:NONE
+rom:0x000A48D8 reloc:MIPS_32 symbol:STD_PATH_STDDAT_DRAW_TMD
+rom:0x000A4A20 reloc:MIPS_32 symbol:KAR_D_8005ABB8
+rom:0x000A4B10 reloc:MIPS_32 symbol:VS_PATH_STDDAT_DRAW_TMD
+rom:0x000A4C1C reloc:MIPS_NONE symbol:NONE
+rom:0x000151E8 reloc:MIPS_HI16 symbol:DOOA_REINCARNATION_SEQ addend:0x24
+rom:0x000151F8 reloc:MIPS_LO16 symbol:DOOA_REINCARNATION_SEQ addend:0x24

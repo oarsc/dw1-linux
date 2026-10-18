@@ -1,0 +1,69 @@
+name: evl
+sha1: 6408093f83e5ece0d77a0577bd3a58f95aabe755
+options:
+  basename: evl
+  target_path: disks/us/EVL_REL.BIN
+  base_path: ../..
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/us/evl
+  src_path: src/evl
+  build_path: build
+
+  ld_script_path: build/us/psx/generated/evl.ld
+
+  global_vram_start: 0x80000000
+  global_vram_end: 0x80200000
+
+  find_file_boundaries: True
+  gp_value: 0x8013BB2C
+
+  generate_asm_macros_files: False
+
+  section_order: [".text", ".rodata", ".data", ".sdata", ".sbss", ".bss"]
+
+  symbol_addrs_path:
+    - config/us/symbols.txt
+    - config/us/symbols_evl.txt
+  reloc_addrs_path:
+    - config/us/relocs_evl.txt
+
+  undefined_funcs_auto_path: build/us/psx/generated/undefined_funcs_auto_evl.txt
+  undefined_syms_auto_path: build/us/psx/generated/undefined_syms_auto_evl.txt
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+
+  migrate_rodata_to_functions: False
+
+  create_data_pads: False
+
+  use_gp_rel_macro: True
+
+  asm_data_macro: dlabel_section
+  asm_data_end_label: enddlabel_section
+
+segments:
+  - name: header
+    type: rodata
+    start: 0x0
+    vram: 0x80060000
+    align: 4
+    subalign: 4
+
+  - name: evl
+    type: code
+    start: 0x40
+    vram: 0x80060040
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x40, c, evl]
+      - [0x3EE8, .rodata, evl]
+      - [0x3EFC, .data, evl]
+      - [0x3F3C, .data, evl_bss_us]
+
+  - [0x9008]

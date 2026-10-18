@@ -1,0 +1,1 @@
+rom:0x00000590 reloc:MIPS_26 symbol:DOOA_tick

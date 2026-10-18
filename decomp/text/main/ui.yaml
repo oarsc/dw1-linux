@@ -1,0 +1,22 @@
+STAT_LABELS:
+  storage: {default: embedded, eu: named}
+  macro: STAT_LABEL
+  entries:
+    - name: STR_STAT_LABEL_HP
+      ja: 最大ＨＰ
+      en_us: HP
+    - name: STR_STAT_LABEL_MP
+      ja: 最大ＭＰ
+      en_us: MP
+    - name: STR_STAT_LABEL_OFFENSE
+      ja: 攻撃力
+      en_us: Off
+    - name: STR_STAT_LABEL_DEFENSE
+      ja: 防御力
+      en_us: Def
+    - name: STR_STAT_LABEL_SPEED
+      ja: すばやさ
+      en_us: Speed
+    - name: STR_STAT_LABEL_BRAINS
+      ja: かしこさ
+      en_us: Brain
