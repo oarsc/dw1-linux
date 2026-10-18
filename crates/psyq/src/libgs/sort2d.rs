@@ -55,8 +55,11 @@ pub struct GsSprite {
     pub rotate: i32,
 }
 
-/// `GsALON`: semi-transparency on [hdr: libgs.h `GsALON` (1 << 30)].
+/// libgs `GsBOXF` attribute bits [hdr: libgs.h]: semi-transparency on (bit 30), display off (bit 31),
+/// blend mode (bits 28-29).
 const ATTR_ALPHA_ON: u32 = 1 << 30;
+const ATTR_DISPLAY_OFF: u32 = 1 << 31;
+const ATTR_BLEND_MODE: u32 = 3 << 28;
 
 /// Checks the ordering table is a plain one and returns the entry for `pri`.
 ///
@@ -110,8 +113,19 @@ unsafe fn read_arg<T: Copy>(p: *const T) -> T {
 pub unsafe extern "C" fn GsSortBoxFill(bp: *const GsBoxf, ot: *mut GsOt, pri: u16) {
     unsafe {
         let b = read_arg(bp);
-        if b.attribute & !ATTR_ALPHA_ON != 0 {
-            unimplemented("GsSortBoxFill with an unobserved attribute bit (not GsALON)");
+        // Known attribute bits: ATTR_ALPHA_ON (bit 30), ATTR_DISPLAY_OFF (bit 31),
+        // ATTR_BLEND_MODE (bits 28-29). Anything else is unobserved.
+
+        let known = ATTR_ALPHA_ON | ATTR_DISPLAY_OFF | ATTR_BLEND_MODE;
+        if b.attribute & !known != 0 {
+            unimplemented(&format!(
+                "GsSortBoxFill with unobserved attribute bits {:#x}",
+                b.attribute
+            ));
+        }
+        // Display off: nothing is drawn.
+        if b.attribute & ATTR_DISPLAY_OFF != 0 {
+            return;
         }
         let slot = entry("GsSortBoxFill", ot, pri);
         let pk = GsGetWorkBase().cast::<u32>();
@@ -176,7 +190,6 @@ pub unsafe extern "C" fn GsSortPoly(pp: *const u32, ot: *mut GsOt, pri: u16) {
 const ATTR_BRIGHT_OFF: u32 = 1 << 6;
 const ATTR_COLOR_MODE: u32 = 3 << 24;
 const ATTR_ALPHA_RATE: u32 = 3 << 28;
-const ATTR_DISPLAY_OFF: u32 = 1 << 31;
 
 /// The attribute's draw-mode bits for a sprite's packets: the command's flags and the texture
 /// page word.
