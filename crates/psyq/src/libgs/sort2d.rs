@@ -56,10 +56,12 @@ pub struct GsSprite {
 }
 
 /// libgs `GsBOXF` attribute bits [hdr: libgs.h]: semi-transparency on (bit 30), display off (bit 31),
-/// blend mode (bits 28-29).
+/// blend mode (bits 28-29). `GsSortBoxFill` also copies attribute bits 24-25 into the draw-mode
+/// word's texture-page colour field.
 const ATTR_ALPHA_ON: u32 = 1 << 30;
 const ATTR_DISPLAY_OFF: u32 = 1 << 31;
 const ATTR_BLEND_MODE: u32 = 3 << 28;
+const ATTR_TPAGE_COLOUR: u32 = 3 << 24;
 
 /// Checks the ordering table is a plain one and returns the entry for `pri`.
 ///
@@ -102,9 +104,12 @@ unsafe fn read_arg<T: Copy>(p: *const T) -> T {
 /// `(r, g, b)`, drawn at priority `pri` [doc].
 ///
 /// [obs] The packet is five words, a draw-mode word then a flat TILE: `[len 4 | link]`,
-/// `E1000200`, `60BBGGRR` (`62BBGGRR` with `GsALON`), `yyyyxxxx`, `hhhhwwww`. The draw-mode word
-/// is 0x200 (dither on, texture page 0) in every captured call, `GsALON` or not; the blend mode
-/// bits 28-29 of the attribute were 0 in all of them, so any other attribute stops the program.
+/// `E1000200`, `60BBGGRR` (`62BBGGRR` with `GsALON`), `yyyyxxxx`, `hhhhwwww`. The blend mode
+/// bits 28-29 of the attribute were 0 in every captured call, but the retail `GsSortBoxFill`
+/// (US 0x80096CE0) builds the draw-mode word as
+/// `0xE1000200 | ((attribute >> 23) & 0x60) | ((attribute >> 17) & 0x180)`, mapping the
+/// attribute's blend mode (bits 28-29) to ABR (bits 5-6) and its texture-page colour bits
+/// (bits 24-25) to bits 7-8.
 ///
 /// # Safety
 /// `bp` must be valid, `ot` an ordering table in the link window, and the work base a packet area
@@ -114,9 +119,10 @@ pub unsafe extern "C" fn GsSortBoxFill(bp: *const GsBoxf, ot: *mut GsOt, pri: u1
     unsafe {
         let b = read_arg(bp);
         // Known attribute bits: ATTR_ALPHA_ON (bit 30), ATTR_DISPLAY_OFF (bit 31),
-        // ATTR_BLEND_MODE (bits 28-29). Anything else is unobserved.
+        // ATTR_BLEND_MODE (bits 28-29), ATTR_TPAGE_COLOUR (bits 24-25).
+        // Anything else is unobserved.
 
-        let known = ATTR_ALPHA_ON | ATTR_DISPLAY_OFF | ATTR_BLEND_MODE;
+        let known = ATTR_ALPHA_ON | ATTR_DISPLAY_OFF | ATTR_BLEND_MODE | ATTR_TPAGE_COLOUR;
         if b.attribute & !known != 0 {
             unimplemented(&format!(
                 "GsSortBoxFill with unobserved attribute bits {:#x}",
@@ -134,7 +140,10 @@ pub unsafe extern "C" fn GsSortBoxFill(bp: *const GsBoxf, ot: *mut GsOt, pri: u1
         } else {
             0x60
         };
-        pk.add(1).write(0xE100_0200);
+        let draw_mode = 0xE100_0200
+            | ((b.attribute >> 23) & 0x60)
+            | ((b.attribute >> 17) & 0x180);
+        pk.add(1).write(draw_mode);
         pk.add(2)
             .write(code << 24 | u32::from(b.b) << 16 | u32::from(b.g) << 8 | u32::from(b.r));
         pk.add(3)
