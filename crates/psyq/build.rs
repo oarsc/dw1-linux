@@ -5,6 +5,8 @@
 
 use std::path::{Path, PathBuf};
 
+include!("../../tools/build-support/watch.rs");
+
 fn main() {
     disc();
     gte_capture();
@@ -33,7 +35,7 @@ fn sort2d_capture() {
         Some(d) => PathBuf::from(d),
         None => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../captures/oracle-runs"),
     };
-    println!("cargo::rerun-if-changed={}", root.display());
+    watch(&root);
     let found = std::fs::read_dir(&root).is_ok_and(|entries| {
         entries.flatten().any(|e| {
             e.file_name().to_string_lossy().starts_with("g2d-box-")
@@ -62,9 +64,9 @@ fn sort_capture() {
         Some(d) => PathBuf::from(d),
         None => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../captures/oracle-runs"),
     };
-    // Watched even when missing (Cargo then reruns this script on every build), so captures
-    // added later are picked up.
-    println!("cargo::rerun-if-changed={}", root.display());
+    // Watched through `watch` so a missing captures root doesn't rerun this script on every
+    // build (and with it everything that depends on it); captures added later still count.
+    watch(&root);
     let mut found = 0;
     if let Ok(entries) = std::fs::read_dir(&root) {
         for e in entries.flatten() {
@@ -99,8 +101,8 @@ fn disc() {
     let files = std::env::var_os("DW1_DISC_FILES")
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join("decomp/disks/us"));
-    println!("cargo::rerun-if-changed={}", cue.display());
-    println!("cargo::rerun-if-changed={}", files.display());
+    watch(&cue);
+    watch(&files);
     // The image alone (tests/libgs_disc_models.rs reads its files through `pack`).
     if cue.exists() {
         println!("cargo::rustc-cfg=have_disc_image");
@@ -125,10 +127,7 @@ fn gte_capture() {
         Some(d) => PathBuf::from(d),
         None => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../captures/oracle-runs/gte-final"),
     };
-    println!(
-        "cargo::rerun-if-changed={}",
-        dir.join("results.txt").display()
-    );
+    watch(&dir.join("results.txt"));
     if dir.join("req.txt").exists() && dir.join("results.txt").exists() {
         println!("cargo::rustc-cfg=have_gte_capture");
     } else {
@@ -152,10 +151,7 @@ fn libgs_light_capture() {
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../captures/oracle-runs/libgs-light")
         }
     };
-    println!(
-        "cargo::rerun-if-changed={}",
-        dir.join("results.txt").display()
-    );
+    watch(&dir.join("results.txt"));
     if dir.join("req.txt").exists() && dir.join("results.txt").exists() {
         println!("cargo::rustc-cfg=have_libgs_light_capture");
     } else {
@@ -176,7 +172,7 @@ fn libgpu_capture() {
         Some(d) => PathBuf::from(d),
         None => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../captures/oracle-runs"),
     };
-    println!("cargo::rerun-if-changed={}", root.display());
+    watch(&root);
     if root.join("g2d-tim/calls.txt").exists() && root.join("g2d-clut/calls.txt").exists() {
         println!("cargo::rustc-cfg=have_libgpu_capture");
     } else {
@@ -219,10 +215,7 @@ fn tmd_capture() {
         let cfg = format!("have_libgs_tmd_{set}_capture");
         println!("cargo::rustc-check-cfg=cfg({cfg})");
         let dir = root.join(format!("p9-render-s4j-{set}"));
-        println!(
-            "cargo::rerun-if-changed={}",
-            dir.join("results.txt").display()
-        );
+        watch(&dir.join("results.txt"));
         if dir.join("req.txt").exists() && dir.join("results.txt").exists() {
             println!("cargo::rustc-cfg={cfg}");
         } else {
@@ -245,10 +238,7 @@ fn request_run(cfg: &str, env: &str, default: &str) {
             .join("../../captures/oracle-runs")
             .join(default),
     };
-    println!(
-        "cargo::rerun-if-changed={}",
-        dir.join("results.txt").display()
-    );
+    watch(&dir.join("results.txt"));
     if dir.join("req.txt").exists() && dir.join("results.txt").exists() {
         println!("cargo::rustc-cfg={cfg}");
     } else {
@@ -270,7 +260,7 @@ fn sortot_capture() {
         Some(d) => PathBuf::from(d),
         None => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../captures/oracle-runs"),
     };
-    println!("cargo::rerun-if-changed={}", root.display());
+    watch(&root);
     if root.join("g2d-sortot/calls.txt").exists() && root.join("libgs-sortot/results.txt").exists()
     {
         println!("cargo::rustc-cfg=have_libgs_sortot_capture");

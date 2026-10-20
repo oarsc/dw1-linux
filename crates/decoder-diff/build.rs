@@ -7,6 +7,8 @@
 
 use std::path::Path;
 
+include!("../../tools/build-support/watch.rs");
+
 const FILES: [&str; 3] = ["backend/xadec.c", "backend/mdec.c", "backend/psxspu.c"];
 
 fn main() {
@@ -22,7 +24,7 @@ fn main() {
     let mut all = true;
     for f in FILES {
         let p = root.join(f);
-        println!("cargo::rerun-if-changed={}", p.display());
+        watch(&p);
         all &= p.exists();
         if f == "backend/mdec.c" && p.exists() {
             build.file(colour_patched(&p));
@@ -37,10 +39,7 @@ fn main() {
         return;
     }
     // psxspu.c includes psxspu_gauss.inc and every file includes "backend/*.h".
-    println!(
-        "cargo::rerun-if-changed={}",
-        root.join("backend/psxspu_gauss.inc").display()
-    );
+    watch(&root.join("backend/psxspu_gauss.inc"));
     build
         .include(&root)
         .warnings(false)

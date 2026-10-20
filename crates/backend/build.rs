@@ -4,6 +4,8 @@
 
 use std::path::{Path, PathBuf};
 
+include!("../../tools/build-support/watch.rs");
+
 fn main() {
     println!("cargo::rustc-check-cfg=cfg(have_gpu_capture)");
     println!("cargo::rerun-if-changed=build.rs");
@@ -12,11 +14,8 @@ fn main() {
         Some(d) => PathBuf::from(d),
         None => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../captures/oracle-runs/gpu-prims"),
     };
-    // Watched even when missing, so captures added later are picked up.
-    println!(
-        "cargo::rerun-if-changed={}",
-        dir.join("results.txt").display()
-    );
+    // Watched through `watch`, so the missing capture doesn't rerun this script every build.
+    watch(&dir.join("results.txt"));
     if dir.join("cases.txt").exists() && dir.join("results.txt").exists() {
         println!("cargo::rustc-cfg=have_gpu_capture");
     } else {

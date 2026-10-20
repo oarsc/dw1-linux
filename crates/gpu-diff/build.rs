@@ -4,13 +4,15 @@
 
 use std::path::Path;
 
+include!("../../tools/build-support/watch.rs");
+
 fn main() {
     println!("cargo::rustc-check-cfg=cfg(have_dw2_c)");
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=c/stubs.c");
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ref/DW2-PC");
     let src = root.join("backend/psxgpu.c");
-    println!("cargo::rerun-if-changed={}", src.display());
+    watch(&src);
     if !src.exists() {
         println!(
             "cargo::warning=ref/DW2-PC/backend/psxgpu.c not found: GPU differential tests will skip"

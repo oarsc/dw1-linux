@@ -5,6 +5,8 @@
 
 use std::path::{Path, PathBuf};
 
+include!("../../tools/build-support/watch.rs");
+
 fn main() {
     println!("cargo::rustc-check-cfg=cfg(have_disc)");
     println!("cargo::rerun-if-changed=build.rs");
@@ -17,8 +19,8 @@ fn main() {
     let files = std::env::var_os("DW1_DISC_FILES")
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join("decomp/disks/us"));
-    println!("cargo::rerun-if-changed={}", cue.display());
-    println!("cargo::rerun-if-changed={}", files.display());
+    watch(&cue);
+    watch(&files);
     if cue.exists() && files.is_dir() {
         println!("cargo::rustc-cfg=have_disc");
         println!("cargo::rustc-env=DW1_TEST_DISC={}", cue.display());

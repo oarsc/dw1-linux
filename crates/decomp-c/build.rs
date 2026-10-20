@@ -24,6 +24,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+include!("../../tools/build-support/watch.rs");
+
 #[path = "src/literals.rs"]
 mod literals;
 
@@ -59,7 +61,7 @@ fn main() {
     // The save-card test needs Ember's fixture (local, gitignored); without it the test is ignored.
     println!("cargo::rustc-check-cfg=cfg(dw1_fixture_card)");
     let fixture = manifest.join("../../captures/fixtures/ember-day2-gabumon.mcd");
-    println!("cargo:rerun-if-changed={}", fixture.display());
+    watch(&fixture);
     if fixture.exists() {
         println!("cargo:rustc-cfg=dw1_fixture_card");
     }
