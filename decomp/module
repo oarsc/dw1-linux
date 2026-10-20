@@ -1,3 +1,3 @@
 sync=https://github.com/loafykitten/dw_decomp:dw1-native:b6850fe78d3da63bac6faeaa009dd21c85cc6395
-sync=https://github.com/jype0/dw_decomp:main:09c174c012365cafd219dff54813dd1ccb9c87ce
+sync=https://github.com/jype0/dw_decomp:main:aaf69a4491cbf275ffd24df19fe78010151c10f2
 content=config,include,mk,src,text,tools

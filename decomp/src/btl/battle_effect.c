@@ -120,12 +120,12 @@ int32_t BTL_multiplyInt16Variable(intptr_t p);
 int32_t BTL_subtractInt16Variable(intptr_t p);
 int32_t BTL_addInt16Variable(intptr_t p);
 int32_t BTL_setInt16Variable(intptr_t p);
-int32_t BTL_compareGreaterOrEqual(int32_t x);
-int32_t BTL_compareGreater(int32_t x);
-int32_t BTL_compareLessOrEqual(int32_t x);
 int32_t BTL_compareLess(int32_t x);
-int32_t BTL_compareNotEqual(int32_t x);
+int32_t BTL_compareLessOrEqual(int32_t x);
+int32_t BTL_compareGreater(int32_t x);
+int32_t BTL_compareGreaterOrEqual(int32_t x);
 int32_t BTL_compareEqual(int32_t x);
+int32_t BTL_compareNotEqual(int32_t x);
 void BTL_dispatchEFEOpcode(int32_t op);
 void BTL_resetPoisonBubbles(void);
 char *BTL_initializeParticleEmitters(char *base);
@@ -365,12 +365,12 @@ static void *battle_effect_functions[] = {
 	BTL_interpolateClamped,
 	BTL_renderParallelLines,
 	BTL_calculateAttackHitPosition,
-	BTL_compareEqual,
 	BTL_compareNotEqual,
-	BTL_compareLess,
-	BTL_compareLessOrEqual,
-	BTL_compareGreater,
+	BTL_compareEqual,
 	BTL_compareGreaterOrEqual,
+	BTL_compareGreater,
+	BTL_compareLessOrEqual,
+	BTL_compareLess,
 	BTL_setInt16Variable,
 	BTL_addInt16Variable,
 	BTL_subtractInt16Variable,
@@ -596,12 +596,12 @@ static void *battle_effect_functions[] = {
 	BTL_interpolateClamped,
 	BTL_renderParallelLines,
 	BTL_calculateAttackHitPosition,
-	BTL_compareEqual,
 	BTL_compareNotEqual,
-	BTL_compareLess,
-	BTL_compareLessOrEqual,
-	BTL_compareGreater,
+	BTL_compareEqual,
 	BTL_compareGreaterOrEqual,
+	BTL_compareGreater,
+	BTL_compareLessOrEqual,
+	BTL_compareLess,
 	BTL_setInt16Variable,
 	BTL_addInt16Variable,
 	BTL_subtractInt16Variable,
@@ -1165,12 +1165,12 @@ int32_t (*BTL_EFE_VARIABLE_OPERATORS[5][8])(intptr_t) = {
 };
 
 int32_t (*BTL_EFE_COMPARISONS[6])(int32_t) = {
-	BTL_compareEqual,
 	BTL_compareNotEqual,
-	BTL_compareLess,
-	BTL_compareLessOrEqual,
-	BTL_compareGreater,
+	BTL_compareEqual,
 	BTL_compareGreaterOrEqual,
+	BTL_compareGreater,
+	BTL_compareLessOrEqual,
+	BTL_compareLess,
 };
 
 uint8_t BTL_WIREFRAME_BOX_LINES[16] = {
@@ -5201,7 +5201,7 @@ int32_t BTL_setInt16Variable(intptr_t p)
 	*(int16_t *)p = EFE_SCRIPT_REGISTER;
 }
 
-int32_t BTL_compareGreaterOrEqual(int32_t x)
+int32_t BTL_compareLess(int32_t x)
 {
 	if (x >= EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5210,7 +5210,7 @@ int32_t BTL_compareGreaterOrEqual(int32_t x)
 	return -1;
 }
 
-int32_t BTL_compareGreater(int32_t x)
+int32_t BTL_compareLessOrEqual(int32_t x)
 {
 	if (x > EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5219,7 +5219,7 @@ int32_t BTL_compareGreater(int32_t x)
 	return -1;
 }
 
-int32_t BTL_compareLessOrEqual(int32_t x)
+int32_t BTL_compareGreater(int32_t x)
 {
 	if (x <= EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5228,7 +5228,7 @@ int32_t BTL_compareLessOrEqual(int32_t x)
 	return -1;
 }
 
-int32_t BTL_compareLess(int32_t x)
+int32_t BTL_compareGreaterOrEqual(int32_t x)
 {
 	if (x < EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5237,7 +5237,7 @@ int32_t BTL_compareLess(int32_t x)
 	return -1;
 }
 
-int32_t BTL_compareNotEqual(int32_t x)
+int32_t BTL_compareEqual(int32_t x)
 {
 	if (x != EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5246,7 +5246,7 @@ int32_t BTL_compareNotEqual(int32_t x)
 	return -1;
 }
 
-int32_t BTL_compareEqual(int32_t x)
+int32_t BTL_compareNotEqual(int32_t x)
 {
 	if (x == EFE_SCRIPT_REGISTER) {
 		return 0;

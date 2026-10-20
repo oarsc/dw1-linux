@@ -225,12 +225,12 @@ int32_t STD_multiplyInt16Variable(intptr_t p);
 int32_t STD_subtractInt16Variable(intptr_t p);
 int32_t STD_addInt16Variable(intptr_t p);
 int32_t STD_setInt16Variable(intptr_t p);
-int32_t STD_compareGreaterOrEqual(int32_t x);
-int32_t STD_compareGreater(int32_t x);
-int32_t STD_compareLessOrEqual(int32_t x);
 int32_t STD_compareLess(int32_t x);
-int32_t STD_compareNotEqual(int32_t x);
+int32_t STD_compareLessOrEqual(int32_t x);
+int32_t STD_compareGreater(int32_t x);
+int32_t STD_compareGreaterOrEqual(int32_t x);
 int32_t STD_compareEqual(int32_t x);
+int32_t STD_compareNotEqual(int32_t x);
 int16_t STD_calculateAttackHitPosition(SVECTOR *out, Entity *self, Entity *other, int32_t y);
 int32_t STD_interpolateClamped(int32_t lo, int32_t hi, long t, int32_t start, int32_t end);
 void STD_initializeEFESubOpcodeTable(void);
@@ -356,12 +356,12 @@ static void *std_effect_functions[] = {
 	STD_interpolateClamped,
 	STD_renderParallelLines,
 	STD_calculateAttackHitPosition,
-	STD_compareEqual,
 	STD_compareNotEqual,
-	STD_compareLess,
-	STD_compareLessOrEqual,
-	STD_compareGreater,
+	STD_compareEqual,
 	STD_compareGreaterOrEqual,
+	STD_compareGreater,
+	STD_compareLessOrEqual,
+	STD_compareLess,
 	STD_setInt16Variable,
 	STD_addInt16Variable,
 	STD_subtractInt16Variable,
@@ -579,12 +579,12 @@ static void *std_effect_functions[] = {
 	STD_interpolateClamped,
 	STD_renderParallelLines,
 	STD_calculateAttackHitPosition,
-	STD_compareEqual,
 	STD_compareNotEqual,
-	STD_compareLess,
-	STD_compareLessOrEqual,
-	STD_compareGreater,
+	STD_compareEqual,
 	STD_compareGreaterOrEqual,
+	STD_compareGreater,
+	STD_compareLessOrEqual,
+	STD_compareLess,
 	STD_setInt16Variable,
 	STD_addInt16Variable,
 	STD_subtractInt16Variable,
@@ -971,12 +971,12 @@ int32_t (*STD_EFE_VARIABLE_OPERATORS[5][8])(intptr_t) = {
 };
 
 int32_t (*STD_EFE_COMPARISONS[6])(int32_t) = {
-	STD_compareEqual,
 	STD_compareNotEqual,
-	STD_compareLess,
-	STD_compareLessOrEqual,
-	STD_compareGreater,
+	STD_compareEqual,
 	STD_compareGreaterOrEqual,
+	STD_compareGreater,
+	STD_compareLessOrEqual,
+	STD_compareLess,
 };
 
 uint8_t STD_WIREFRAME_BOX_LINES[16] = {
@@ -5390,7 +5390,7 @@ int32_t STD_setInt16Variable(intptr_t p)
 	*(int16_t *)p = EFE_SCRIPT_REGISTER;
 }
 
-int32_t STD_compareGreaterOrEqual(int32_t x)
+int32_t STD_compareLess(int32_t x)
 {
 	if (x >= EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5399,7 +5399,7 @@ int32_t STD_compareGreaterOrEqual(int32_t x)
 	return -1;
 }
 
-int32_t STD_compareGreater(int32_t x)
+int32_t STD_compareLessOrEqual(int32_t x)
 {
 	if (x > EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5408,7 +5408,7 @@ int32_t STD_compareGreater(int32_t x)
 	return -1;
 }
 
-int32_t STD_compareLessOrEqual(int32_t x)
+int32_t STD_compareGreater(int32_t x)
 {
 	if (x <= EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5417,7 +5417,7 @@ int32_t STD_compareLessOrEqual(int32_t x)
 	return -1;
 }
 
-int32_t STD_compareLess(int32_t x)
+int32_t STD_compareGreaterOrEqual(int32_t x)
 {
 	if (x < EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5426,7 +5426,7 @@ int32_t STD_compareLess(int32_t x)
 	return -1;
 }
 
-int32_t STD_compareNotEqual(int32_t x)
+int32_t STD_compareEqual(int32_t x)
 {
 	if (x != EFE_SCRIPT_REGISTER) {
 		return 0;
@@ -5435,7 +5435,7 @@ int32_t STD_compareNotEqual(int32_t x)
 	return -1;
 }
 
-int32_t STD_compareEqual(int32_t x)
+int32_t STD_compareNotEqual(int32_t x)
 {
 	if (x == EFE_SCRIPT_REGISTER) {
 		return 0;
