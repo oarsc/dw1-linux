@@ -1,4 +1,4 @@
-//! Choices the Mac app makes that the game C reads: additions to the game, not PS1 behaviour.
+//! Choices the native Linux app makes that the game C reads: additions to the game, not PS1 behaviour.
 //! Each is off unless the app turns it on, so the oracle replays run the game as it was.
 
 use std::sync::atomic::{AtomicI32, Ordering};

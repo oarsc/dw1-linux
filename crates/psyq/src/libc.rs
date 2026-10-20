@@ -1,5 +1,5 @@
 //! The C library calls the game makes, under the `dw1_` names `dw1_native.h` gives them so the
-//! game C can't bind to macOS's libc (whose `size_t` is 64-bit where Psy-Q's is 32, and whose
+//! game C can't bind to the host's libc (whose `size_t` is 64-bit where Psy-Q's is 32, and whose
 //! NULL handling differs).
 //!
 //! In DW1's executable, every one of these except `sprintf` is a three-instruction jump into

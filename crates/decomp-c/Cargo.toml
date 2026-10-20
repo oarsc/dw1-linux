@@ -1,6 +1,6 @@
 [package]
 name = "decomp-c"
-description = "The dw_decomp game C (decomp/ submodule), compiled for arm64 and linked against psyq"
+description = "The dw_decomp game C (decomp/ submodule), compiled for Linux x86_64 and linked against psyq"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true

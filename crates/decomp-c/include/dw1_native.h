@@ -2,7 +2,7 @@
  * Force-included before every decomp C file in the native build (-include dw1_native.h).
  *
  * The decomp C is PS1 code: ILP32, with Psy-Q's headers and libc. This header keeps that
- * meaning on arm64 macOS (LP64) and points the PS1 runtime calls at crates/psyq.
+ * meaning on Linux x86_64 (LP64) and points the PS1 runtime calls at crates/psyq.
  *
  * The directory holding this file comes first on the include path, so the headers next to it
  * (inline_n.h, setjmp.h, __rts_info_t__.h) replace the PS1-only ones from the decomp and
@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 /*
- * `long` is 32 bits on the PS1 and 64 on arm64 macOS. Every `long` in the game C and in
+ * `long` is 32 bits on the PS1 and 64 on Linux x86_64. Every `long` in the game C and in
  * Psy-Q's headers (u_long, VECTOR, MATRIX.t, GPU packet words, SDK prototypes) means 32 bits,
  * so it's made 32 bits here (docs/phase1-report.md, "long"). `long long` isn't expressible
  * after this; the one game use is guarded by DW1_NATIVE in the decomp. Integer literals with
@@ -31,7 +31,7 @@
 
 /*
  * Psy-Q and the decomp define NULL as a plain 0 (each behind #ifndef NULL). That's a 32-bit
- * int, which arm64 doesn't widen when it's passed through `...` or to an unprototyped
+ * int, which the host ABI doesn't widen when it's passed through `...` or to an unprototyped
  * function expecting a pointer; a pointer constant is always the right width.
  */
 #define NULL ((void *)0)
@@ -61,7 +61,7 @@ _Noreturn void dw1_native_fatal(const char *what);
  * the file's values, as the PS1's load of the file would do (crates/decomp-c/src/overlays.rs). */
 void dw1_overlay_reset(int32_t lib);
 
-/* Nonzero when the game's save screens use the Mac app's save slots instead of memory cards
+/* Nonzero when the game's save screens use the native app's save slots instead of memory cards
  * (crates/psyq/src/native.rs; the decomp's main_menu.c, Phase 7). */
 extern int32_t dw1_pc_saves;
 

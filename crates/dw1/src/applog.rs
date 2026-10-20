@@ -269,7 +269,7 @@ fn show_stop(message: &str) {
         return;
     }
     let text = format!(
-        "The game stopped: the Mac port met something it doesn't handle yet.\n\n{message}{}\n\n\
+        "The game stopped: the Linux port met something it doesn't handle yet.\n\n{message}{}\n\n\
          Your saves up to the last one are safe. Please keep the log for a bug report.",
         log_note()
     );

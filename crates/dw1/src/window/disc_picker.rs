@@ -1,6 +1,6 @@
 //! The disc at start-up (Phase 9.1): the image `crate::disc::at_startup` found is checked with
 //! "Checking the disc image" on screen; when none is known yet, or the one known doesn't work,
-//! the window says what it needs and asks for the image with the macOS file dialog (or a `.cue`
+//! the window says what it needs and asks for the image with a file dialog (or a `.cue`
 //! dropped on the window), checks it and keeps its path for the next runs. Checking reads the
 //! whole image, so it runs on its own thread and the window keeps answering. Drawn like the
 //! splash, before the game starts; it touches no game state.
@@ -220,7 +220,7 @@ impl Window {
         }
     }
 
-    /// Opens the macOS file dialog for a `.cue` or `.bin`; the choice (None if cancelled) comes
+    /// Opens the file dialog for a `.cue` or `.bin`; the choice (None if cancelled) comes
     /// back on `tx` when the dialog closes. False if it couldn't open.
     fn open_dialog(&self, tx: mpsc::Sender<Option<PathBuf>>) -> bool {
         let filters = [DialogFileFilter {

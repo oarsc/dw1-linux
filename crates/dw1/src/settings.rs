@@ -1,5 +1,5 @@
 //! The window build's picture settings (Phase 8.4), kept in
-//! `~/.config/dw1-silicon/settings.txt` and changed in play with hotkeys.
+//! `~/.config/dw1-linux/settings.txt` and changed in play with hotkeys.
 //! Every option says whether it's the original or an addition: with `render_scale = 1` and
 //! `fit = integer` the picture is the PS1's, pixel for pixel.
 //!
@@ -148,7 +148,7 @@ impl Settings {
             _ => "integer",
         };
         format!(
-            "# dw1-silicon picture settings. Changed in the game: F2 render scale, F3 no wobble,\n\
+            "# dw1-linux picture settings. Changed in the game: F2 render scale, F3 no wobble,\n\
              # F4 fit, F5 full colour, F11 fullscreen. Delete this file for the defaults.\n\
              \n\
              # The resolution the game is drawn at: 1 is the original PS1 picture; 2 to 8 draw it\n\

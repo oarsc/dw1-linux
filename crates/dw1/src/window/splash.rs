@@ -1,4 +1,4 @@
-//! The start-up splash: a few lines of text on a dark screen that say this is the native Mac
+//! The start-up splash: a few lines of text on a dark screen that say this is the native Linux
 //! build, so it can't be taken for the PS1 original. Drawn with SDL's debug font on a software
 //! canvas the window's size, shown through the renderer before the game starts; it touches no
 //! GPU, clock, pad or game state. `DW1_SPLASH_SHOT=<file.png>` saves it at full brightness

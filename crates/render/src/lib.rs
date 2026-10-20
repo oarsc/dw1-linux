@@ -1,4 +1,4 @@
-//! The window's picture on wgpu (Metal): the game's display (0x00RRGGBB pixels, from
+//! The window's picture on wgpu (Vulkan): the game's display (0x00RRGGBB pixels, from
 //! `backend::gpu`) uploaded as a texture each field and drawn into the window.
 //!
 //! Colours pass through unchanged: the picture texture and the window are both 8-bit unorm,

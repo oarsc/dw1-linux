@@ -1,4 +1,4 @@
-//! The window host: the game's display shown through `render` (wgpu on Metal), paced to the
+//! The window host: the game's display shown through `render` (wgpu on Vulkan), paced to the
 //! PS1's field rate, with the keyboard and gamepads as the pad. SDL3 keeps the window, input and
 //! sound.
 //!
@@ -6,16 +6,16 @@
 //! A = Square, S = Triangle, Enter = Start, right Shift = Select, Q/W = L1/R1, 1/2 = L2/R2.
 //! Gamepads use SDL's standard layout (south = Cross, east = Circle, west = Square,
 //! north = Triangle), the D-pad or left stick for directions, the triggers for L2/R2.
-//! Closing the window or Cmd-Q exits 0. `DW1_WINDOW_LOG=1` logs frames presented and the
+//! Closing the window exits 0. `DW1_WINDOW_LOG=1` logs frames presented and the
 //! display size (first frame, on size changes, then every 60 frames).
 //!
 //! Picture settings (`settings.rs`, kept between runs; a note in the corner says what changed
 //! and whether it's original or an addition): F2 render scale (auto, 1, 2, 3, 4, 6, 8), F3 no
 //! wobble, F4 fit (integer, the original look, or fill at 4:3), F5 full colour, F11 or
-//! Cmd-Ctrl-F fullscreen. F12 writes a bug snapshot (`snapshot.rs`).
+//! Super-Ctrl-F fullscreen. F12 writes a bug snapshot (`snapshot.rs`).
 //!
 //! Before the game starts, `Window::splash` shows a short text screen (about 2.8 s; any key,
-//! button or click skips it) saying this is the native Mac build. `DW1_NO_SPLASH=1` skips it;
+//! button or click skips it) saying this is the native Linux build. `DW1_NO_SPLASH=1` skips it;
 //! `DW1_SPLASH_SHOT=<file.png>` saves it as a picture. Headless and replay runs never show it.
 
 use std::collections::BTreeMap;
@@ -436,7 +436,7 @@ impl Window {
         let sdl = sdl3::init().map_err(|e| e.to_string())?;
         let video = sdl.video().map_err(|e| e.to_string())?;
         let window = video
-            .window("Digimon World (dw1-silicon)", 960, 720)
+            .window("Digimon World (dw1-linux)", 960, 720)
             .resizable()
             .high_pixel_density()
             .vulkan()
@@ -606,7 +606,7 @@ impl Window {
         self.change(Note::Fullscreen, |s| s.fullscreen = on);
     }
 
-    /// Fullscreen on or off. SDL changes it asynchronously on macOS (an animation); waiting for
+    /// Fullscreen on or off. SDL changes it asynchronously (a window-manager animation); waiting for
     /// it to finish means a second press always sees where the first one ended. The field clock
     /// resyncs after the wait.
     fn set_fullscreen(&mut self, on: bool) {
@@ -745,9 +745,9 @@ impl Window {
         if failed != self.save_failed_shown {
             self.save_failed_shown = failed;
             let title = if failed {
-                "Digimon World (dw1-silicon) - SAVE NOT WRITTEN TO DISK (see the terminal)"
+                "Digimon World (dw1-linux) - SAVE NOT WRITTEN TO DISK (see the terminal)"
             } else {
-                "Digimon World (dw1-silicon)"
+                "Digimon World (dw1-linux)"
             };
             let _ = self.window.set_title(title);
         }

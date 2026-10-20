@@ -40,17 +40,23 @@ This file records architectural and flow decisions, with their justification, so
 
 **Justification:** It is readable C, written by humans, organized by overlays. It meets the user's requirement of "C code I can edit."
 
-**Consequence:** The C compiles for x86_64 Linux with clang/gcc, linked against the PS1 SDK in Rust (`crates/psyq/`). See `docs/linux-port/08-editing-c.md`.
+**Consequence:** The C compiles for x86_64 Linux with clang/gcc, linked against the PS1 SDK in Rust (`crates/psyq/`). See `README.md` and `LINUX_PORT_STATUS.md`.
 
 ---
 
-## D5. Maintain macOS compatibility
+## D5. Maintain macOS compatibility — OBSOLETE
 
-**Decision:** All changes use `#[cfg(target_os = "...")]` and `#ifdef __linux__` to keep macOS working.
+**Status: obsolete, superseded by D15.** The port became Linux-only and all macOS-specific code
+was removed (no `#[cfg(target_os = "macos")]` branches remain; the macOS packaging scripts were
+deleted).
 
-**Justification:** We do not want to break the macOS build. The port is additive, not substitutive.
+**Original decision:** use `#[cfg(target_os = "...")]` and `#ifdef __linux__` to keep macOS working.
 
-**Consequence:** The codebase will have platform-conditional branches.
+**Why it was dropped:** keeping the macOS host layer alive cost effort in the build script, the
+ELF/Mach-O memory handling and the packaging, with no benefit for this fork. The upstream
+`dw1-silicon` repository remains the reference for the macOS build.
+
+**Consequence:** platform-conditional branches are no longer required; Linux is the only target.
 
 ---
 
@@ -90,7 +96,7 @@ This file records architectural and flow decisions, with their justification, so
 
 **Justification:** `psxrecomp` has a versioned mod system (byte patches, asset overlays, C plugins) that could be reused or inspire future modding functionality in dw1-linux.
 
-**Consequence:** See `docs/linux-port/09-external-references.md`.
+**Consequence:** Consulted only as inspiration for future mod tooling; not part of the build.
 
 ---
 
@@ -100,7 +106,7 @@ This file records architectural and flow decisions, with their justification, so
 
 **Justification:** `dw1-silicon` explicitly cites DW2-PC as its design template. It is in C and for Windows/Linux.
 
-**Consequence:** See `docs/linux-port/09-external-references.md`.
+**Consequence:** See `docs/dw2pc-reuse.md`.
 
 ---
 
@@ -110,32 +116,32 @@ This file records architectural and flow decisions, with their justification, so
 
 **Justification:** Avoids polluting the host system with toolchains, libraries, and compilers specific to the project. Allows reproducibility and cleanliness.
 
-**Consequence:** Two Dockerfiles are used (`Dockerfile` for Arch/main build, `decomp/Dockerfile` for Ubuntu/dw_decomp) and the `do` script as wrapper to build images and run commands inside the container mounting the current directory.
+**Consequence:** Two Dockerfiles are used (`Dockerfile` for Arch/main build, `decomp/Dockerfile` for Ubuntu/dw_decomp). Two wrappers run commands inside the container mounting the repo at `/dw1`: `tools/dtb` (distrobox) and `tools/do` (plain docker). `./compile` (through `tools/dtb`) builds the release binary and `./run` runs it.
 
 ---
 
-## D12. User documentation in `README-linux.md`
+## D12. User documentation in `README.md`
 
-**Decision:** Keep a simple and up-to-date `README-linux.md` with project summary and step-by-step to compile/run on Linux.
+**Decision:** Keep a simple and up-to-date `README.md` with project summary and step-by-step to compile/run on Linux.
 
-**Justification:** It is the entry point for anyone (including future self) who wants to build the project without reading all phase documentation.
+**Justification:** It is the entry point for anyone (including future self) who wants to build the project without reading all phase documentation. (The Linux instructions started in `README-linux.md`; the macOS readme was moved to `README-silicon.md` and the Linux one became `README.md`.)
 
-**Consequence:** Every time a new step is added to the build or run flow (e.g., a Linux build script, an environment variable, or a new dependency), it must be reflected in `README-linux.md`.
+**Consequence:** Every time a new step is added to the build or run flow (e.g., a Linux build script, an environment variable, or a new dependency), it must be reflected in `README.md`.
 
 ---
 
 ## D13. Build script in `tools/build-linux.sh`
 
-**Decision:** Provide `tools/build-linux.sh` as Linux build script, executed inside the Docker container via `./do`.
+**Decision:** Provide `tools/build-linux.sh` as Linux build script, executed inside the Docker container (via `tools/dtb` or `./compile`).
 
 **Justification:** Provides a consistent interface to compile, configures CMake from `.venv` if not in PATH, and produces a plain binary instead of a macOS `.app` package.
 
-**Consequence:** The script runs inside the container (WORKDIR=/dw1), not on the host. It is invoked as `./do tools/build-linux.sh` or directly `./do cargo build --release -p dw1`.
+**Consequence:** The script runs inside the container (WORKDIR=/dw1), not on the host. It is invoked as `./compile` (which runs it through `tools/dtb`), or directly with `tools/dtb tools/build-linux.sh`.
 
 ---
 ## D14. Edit dw_decomp C for mods and corrections
 
-**Decision:** The game C source lives in the `decomp/` submodule (fork `oarsc/dw_decomp`, based on `jype0/dw_decomp`). Users edit files in `decomp/src/` directly to modify game logic, stats, text, etc., then recompile with `./do cargo build --release -p dw1`.
+**Decision:** The game C source lives in the `decomp/` submodule (fork `oarsc/dw_decomp`, based on `jype0/dw_decomp`). Users edit files in `decomp/src/` directly to modify game logic, stats, text, etc., then recompile with `./compile` (release build inside the container).
 
 **Justification:** The user's main goal is having readable, editable C code that runs natively on Linux. `dw_decomp` provides human-readable C organized by overlays (main, btl, evl, std, trn, etc.), not machine-translated code.
 
@@ -144,3 +150,13 @@ This file records architectural and flow decisions, with their justification, so
 **C↔Rust boundary:** The game C calls PS1 SDK functions (`GsSortObject4J`, `CdRead`, `PadRead`, etc.) implemented as `extern "C"` in Rust (`crates/psyq/`). If a mod needs a new SDK call, it must be added to `crates/psyq/` first.
 
 **External references:** `psxrecomp` (`.psxmod` versioned mod system) and `DW2-PC` (PC architecture template) are consulted as inspiration for future mod tooling, but are not part of the codebase.
+
+---
+
+## D15. Linux x86_64 is the only target (replaces D5)
+
+**Decision:** The port targets native Linux x86_64 only. macOS support was deliberately removed: no `#[cfg(target_os = "macos")]` / `#ifdef __linux__` branches are kept, and the macOS packaging files (`tools/make-app.sh`, `tools/make-icon.py`, `packaging/Info.plist.in`) were deleted.
+
+**Justification:** Maintaining two host layers cost effort in the build script (`xcrun`/host-symbol checks), the ELF-vs-Mach-O data segment handling and the packaging, with no benefit for this fork. Upstream `dw1-silicon` already covers macOS.
+
+**Consequence:** Platform conditionals are no longer needed. Build/run/packaging are Linux-only (`./compile`, `./run`, `tools/make-linux.sh`), paths follow XDG, and the crash trace uses Linux `sigaction` + libgcc `backtrace()`.

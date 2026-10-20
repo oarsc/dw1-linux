@@ -152,7 +152,7 @@ pub fn file_bytes(save: &[u8]) -> Vec<u8> {
 pub fn parse_file(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
     if bytes.len() < HEADER || &bytes[..8] != MAGIC {
-        return Err("not a dw1-silicon save".into());
+        return Err("not a dw1-linux save".into());
     }
     if word(8) != VERSION {
         return Err(format!(

@@ -5,7 +5,7 @@ members = ["crates/pack", "crates/psyq", "crates/decomp-c", "crates/dw1", "crate
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/loafykitten/dw1-silicon"
+repository = "https://github.com/oarsc/dw1-linux"
 publish = false
 
 # The game C calls into Rust through `extern "C"`; a panic must never unwind into it.

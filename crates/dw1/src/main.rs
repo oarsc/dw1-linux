@@ -140,8 +140,8 @@ pub fn default_save_dir() -> Option<std::path::PathBuf> {
     data_dir()
 }
 
-/// The settings file: `$XDG_CONFIG_HOME/dw1-silicon/settings.txt`
-/// (default `~/.config/dw1-silicon/settings.txt`).
+/// The settings file: `$XDG_CONFIG_HOME/dw1-linux/settings.txt`
+/// (default `~/.config/dw1-linux/settings.txt`).
 pub fn settings_path() -> Option<std::path::PathBuf> {
     config_dir().map(|d| d.join("settings.txt"))
 }

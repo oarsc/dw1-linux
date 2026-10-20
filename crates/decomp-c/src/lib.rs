@@ -1,4 +1,4 @@
-//! The decomp's game C, compiled for arm64 (see `build.rs`), and the Rust view of it: extern
+//! The decomp's game C, compiled for Linux x86_64 (see `build.rs`), and the Rust view of it: extern
 //! declarations for the C functions Rust calls, and bindgen bindings for the decomp and SDK
 //! structs Rust reads, each checked against its PS1 size.
 

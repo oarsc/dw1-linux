@@ -180,7 +180,8 @@ pub extern "C" fn PadRead(_id: i32) -> u32 {
 }
 
 /// The return address into whatever called this function's caller (for `PadRead`: the game
-/// code), from the frame-pointer chain, which arm64 macOS always keeps.
+/// code), from the stack unwound with libgcc's `backtrace()` (unwind tables, so it doesn't
+/// depend on frame pointers being kept).
 #[inline(never)]
 fn caller_address() -> usize {
     unsafe extern "C" {

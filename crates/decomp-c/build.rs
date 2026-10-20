@@ -1,4 +1,4 @@
-//! Compiles the game C from the `decomp/` submodule for arm64 macOS, links all of it, and
+//! Compiles the game C from the `decomp/` submodule for Linux x86_64, links all of it, and
 //! generates Rust bindings for the decomp and SDK structs Rust needs to read.
 //!
 //! - **Files:** the US build's own lists (`decomp/mk/version/us.mk`): main, SHOP and every
@@ -12,8 +12,8 @@
 //!   lacks, and clang would silently store UTF-8. Files with non-ASCII string or character
 //!   literals are copied into `OUT_DIR` with those characters as CP932 octal escapes.
 //! - **Linking:** the whole archive is linked (`+whole-archive`), so every symbol any game file needs must
-//!   resolve (in `psyq`, or here), and a build check fails if the game C would bind to a
-//!   macOS libc function instead of the PS1 one.
+//!   resolve (in `psyq`, or here), and every host libc name is prefixed (`dw1_native.h`) so the
+//!   game C never binds to a host libc function instead of the PS1 one.
 
 #[path = "overlays.rs"]
 mod overlays;
@@ -114,7 +114,7 @@ fn main() {
         .flag("-fno-strict-aliasing")
         .flag("-fno-common")
         .flag("-fno-builtin")
-        // Plain char is signed for MIPS GCC and for Apple arm64; pinned so it can't drift.
+        // Plain char is signed for MIPS GCC and for Linux x86_64; pinned so it can't drift.
         // The retail CodeWarrior default is unconfirmed (docs/survey.md, item 8).
         .flag("-fsigned-char")
         // Every game function keeps its own frame, so the replay host's caller check (the
@@ -467,8 +467,7 @@ fn write_if_changed(path: &Path, contents: &str) {
     fs::write(path, contents).unwrap();
 }
 
-/// Fails the build if the archive needs a symbol macOS's libSystem would provide, other than
-/// `HOST_ALLOWED`: that would be a PS1 libc call silently bound to the host's version.
+/// Generates Rust bindings for the decomp/SDK structs Rust reads.
 fn generate_bindings(cpp_args: &[String], out: &Path) {
     let mut bindings = bindgen::Builder::default()
         .clang_args(["-std=gnu89", "-fsigned-char"])

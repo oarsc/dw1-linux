@@ -152,7 +152,7 @@ impl Window {
         }
 
         let about = format!(
-            "dw1-silicon bug snapshot\n\
+            "dw1-linux bug snapshot\n\
              time (UTC): {stamp}\n\
              version: {}\n\
              vblank: {vblank}\n\

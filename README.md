@@ -2,16 +2,17 @@
 
 ## Project Summary
 
-`dw1-silicon` is a native port (not an emulator) of *Digimon World* for
+`dw1-linux` is a native port (not an emulator) of *Digimon World* for
 PlayStation 1 (USA version, SLUS-01032), built from the matching decompilation
 project [`dw_decomp`](https://github.com/jype0/dw_decomp).
 
 The game logic is in C (editable, from `dw_decomp`). Everything else — window,
 graphics, audio, input, PS1 libraries — is in Rust.
 
-This repository (`dw1-linux`) is a copy of `dw1-silicon` adapted to compile and
-run natively on **Linux**, using Docker for build dependencies so the host
-machine stays clean.
+This repository (`dw1-linux`) is a fork of
+[`dw1-silicon`](https://github.com/loafykitten/dw1-silicon), the original native
+Apple Silicon macOS port. Here it is adapted to compile and run natively on
+**Linux**, using Docker for build dependencies so the host machine stays clean.
 
 ---
 
@@ -66,7 +67,7 @@ sudo dnf install sdl3 vulkan-loader mesa-libGL libX11 libXcursor libXrandr libXi
 ### 1. Clone the repository (if not done yet)
 
 ```bash
-git clone --recurse-submodules https://github.com/loafykitten/dw1-silicon.git dw1-linux
+git clone --recurse-submodules https://github.com/oarsc/dw1-linux.git dw1-linux
 cd dw1-linux
 ```
 
@@ -128,7 +129,7 @@ executable at `target/release/dw1`.
 
 The first build may take several minutes (downloading and compiling Rust dependencies).
 
-> Equivalent shortcut: `./do cargo build --release -p dw1`
+> Equivalent shortcut: `./compile`
 
 ### 6. Run the game
 
@@ -165,7 +166,7 @@ system. It does **not** statically bundle libraries: the binary is dynamically l
 host still needs SDL3 and Vulkan/OpenGL at run time (see above).
 
 ```bash
-./do tools/make-linux.sh --install
+./tools/do tools/make-linux.sh --install
 ```
 
 This installs:
@@ -178,7 +179,7 @@ You can then launch Digimon World from your desktop environment's application me
 To install to a different prefix:
 
 ```bash
-PREFIX=/opt/dw1 ./do tools/make-linux.sh --install
+PREFIX=/opt/dw1 ./tools/do tools/make-linux.sh --install
 ```
 
 ### 8. Enter the container to edit code (optional)
@@ -186,7 +187,7 @@ PREFIX=/opt/dw1 ./do tools/make-linux.sh --install
 If you want to edit code and recompile without typing `./do` each time:
 
 ```bash
-./do bash
+./tools/do bash
 ```
 
 Inside the container, the project is at `/dw1`:
@@ -212,7 +213,7 @@ dw1-linux/
 │   ├── do              # Docker wrapper (build image / run commands)
 │   └── dtb             # Distrobox wrapper (build container / run commands)
 ├── crates/             # Rust code (window, GPU, audio, PS1 SDK, etc.)
-├── docs/linux-port/    # Detailed port plan (7 phases)
+├── docs/               # Port plan and phase documents (phase*-plan.md, s0*-*.md)
 ├── compile             # Quick compilation of the code using Distrobox
 ├── run                 # Quick execution of the compiled using Distrobox
 ├── AGENTS.md           # Context for AI agents
@@ -229,13 +230,14 @@ dw1-linux/
 - The game uses **Vulkan** by default on Linux. If you don't have Vulkan drivers,
   switch to OpenGL in `crates/render/Cargo.toml`.
 - To edit the game logic, modify the C files in `decomp/src/` and recompile with
-  `./do tools/build-linux.sh`.
+  `./tools/do tools/build-linux.sh`.
 
 ---
 
 ## Port plan (7 phases)
 
-The detailed plan is in `docs/linux-port/`:
+The detailed plan is in `docs/` (original phase plans, e.g. `docs/phase7-plan.md`), and the
+Linux port status/decisions are tracked in `LINUX_PORT_STATUS.md` and `LINUX_PORT_DECISIONS.md`:
 1. Build system (Linux build script)
 2. C compilation (remove xcrun, compile C on Linux)
 3. Rendering backend (Metal → Vulkan/OpenGL)

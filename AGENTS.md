@@ -1,15 +1,17 @@
-# dw1-silicon - Agent Context for Linux Port
+# dw1-linux - Agent Context for Linux Port
 
 ## Project Overview
 
-dw1-silicon is a native port of Digimon World (PS1, USA SLUS-01032) from the matching decompilation project (jype0/dw_decomp). The original target is **arm64 macOS** (Apple Silicon), but the goal is to make it buildable and runnable on Linux.
+dw1-linux is a native port of Digimon World (PS1, USA SLUS-01032) from the matching decompilation project (jype0/dw_decomp). It started from **dw1-silicon**, the arm64 macOS (Apple Silicon) port, and has been adapted to build and run natively on **Linux x86_64** (macOS support was removed).
 
 **Architecture:** Hybrid approach - game C from decomp + Rust for everything new (PS1 libraries reimplemented). Long-term goal: full Rust migration.
 
-**Current Status (2026-10-17):** Build compiles and links for Linux x86_64. Vulkan renderer works.
+**Current Status (2026-10-20):** Build compiles and links for Linux x86_64. Vulkan renderer works.
 Game opens a window, shows title screen, skips intro video, reaches main menu, starts a new game,
 shows Jijimon naming dialog, loads first map successfully. The `__DATA` segment limit crash on
-first map load is fixed (uses `dl_iterate_phdr` for precise ELF segment limit).
+first map load is fixed (uses `dl_iterate_phdr` for precise ELF segment limit). Saves, settings,
+audio and controls have been exercised on Linux. Editing the game C (`decomp/src/`) and
+recompiling works. Pending: certified replays against the PCSX-Redux oracle on Linux.
 
 ---
 
@@ -83,23 +85,17 @@ first map load is fixed (uses `dl_iterate_phdr` for precise ELF segment limit).
 
 ### 6. Splash Screen (`crates/dw1/src/window/splash.rs`)
 
-**Mac-specific text (still pending):**
-- Line 32: "Native Mac build, written in Rust"
-
-**Linux requirements:**
-- Change to "Native Linux build" or "Native build"
+**Done:**
+- `LINES` shows "Native Linux build, written in Rust" (line 31)
+- Leftover comments mentioning the Mac build still need a cosmetic pass (no functional effect)
 
 ### 7. Crash Handler (`crates/dw1/src/main.rs`)
 
-**Mac-specific code (still pending):**
-- Lines 39-127: Custom SIGSEGV/SIGBUS handler
-- Uses `<mach/arm/_structs.h>` offsets for arm64
-- Uses macOS-specific system calls (`sigaction`, `sigaltstack`, `backtrace_symbols_fd`)
-
-**Linux requirements:**
-- Replace with Linux signal handling
-- Use Linux-specific ucontext offsets
-- Use `backtrace()` from libgcc or similar for stack traces
+**Done (Linux):**
+- `install_crash_trace()`: SIGSEGV/SIGBUS/SIGFPE handler installed with a hand-rolled
+  `sigaction`/`sigaltstack` (x86_64 glibc layout, `SA_ONSTACK | SA_RESETHAND | SA_SIGINFO`)
+- Stack printed with libgcc's `backtrace()` + `backtrace_symbols_fd()` (async-signal-safe)
+- Enabled by default; `DW1_CRASH_TRACE=0` disables it
 
 ### 8. Metadata (`packaging/`)
 
@@ -107,9 +103,8 @@ first map load is fixed (uses `dl_iterate_phdr` for precise ELF segment limit).
 - `packaging/dw1.desktop.in` — `.desktop` template for Linux desktop integration
 - `tools/make-linux.sh` — installs binary, .desktop file, and icon
 
-**macOS (no longer used, kept for reference):**
-- `packaging/Info.plist.in` — macOS app bundle metadata
-- `tools/make-app.sh` — macOS `.app` bundle creation
+**macOS files removed:** `packaging/Info.plist.in`, `tools/make-app.sh` and `tools/make-icon.py`
+were deleted (macOS-only). Only `packaging/icon-1024.png` is kept.
 
 ### 9. Architecture Assumptions
 
@@ -136,68 +131,14 @@ sudo apt install build-essential clang cmake python3-venv libssl-dev pkg-config
 sudo apt install libsdl3-dev libvulkan-dev vulkan-tools
 ```
 
-### 11. Entorno de desarrollo (Docker)
+### 11. Development environment (Docker)
 
-Para no contaminar la máquina host, las dependencias se instalan en Docker. Hay dos imágenes:
+To avoid polluting the host machine, dependencies are installed in Docker. There are two images:
 
-| Dockerfile | Base | Propósito |
+| Dockerfile | Base | Purpose |
 |---|---|---|
-| `Dockerfile` (raíz) | `archlinux:latest` | Build principal de dw1-silicon (Rust, C, SDL3, Vulkan, etc.) |
-| `decomp/Dockerfile` | `ubuntu:noble` | Build de `dw_decomp` (toolchain MIPS, splat, etc.) |
-
-### Script `do`
-
-El fichero `do` en la raíz es un wrapper para Docker:
-
-- **Construir la imagen** (sin parámetros):
-  ```bash
-  ./compile
-  ```
-- **Ejecutar un comando dentro del contenedor** (con parámetros):
-  ```bash
-  ./tools/dtb cargo build --release -p dw1
-  ./tools/dtb bash
-  ./tools/dtb cargo test
-  ```
-
-Monta el directorio actual (`$SCRIPT_DIR`) como `/dw1` dentro del contenedor y lo establece como `WORKDIR`.
-
----
-
-## Build Flow for Linux
-
-### 1. Initial Setup
-
-```bash
-git clone https://github.com/loafykitten/dw1-silicon.git
-cd dw1-silicon
-git submodule update --init decomp
-git -C decomp submodule update --init external/psyq_headers
-python3 -m venv .venv
-.venv/bin/pip install pyyaml cmake
-```
-
-### 2. Build
-
-```bash
-./tools/do                # Build Docker image (once)
-./tools/dtb               # Build Distrobox container (once)
-./compile                 # Compile the game
-```
-
-Produces `target/release/dw1` (ELF x86_64).
-
-### 3. Running on Linux
-
-```bash
-export DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue
-./target/release/dw1
-```
-
-Inside Docker, you also need `XDG_RUNTIME_DIR` set:
-```bash
-export XDG_RUNTIME_DIR=/tmp/runtime-root
-```
+| `Dockerfile` (root) | `archlinux:latest` | Main dw1-linux build (Rust, C, SDL3, Vulkan, etc.) |
+| `decomp/Dockerfile` | `ubuntu:noble` | `dw_decomp` build (MIPS toolchain, splat, etc.) |
 
 ---
 
@@ -216,8 +157,8 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 | `crates/dw1/src/main.rs` | `data_dir()`, `config_dir()`, `settings_path()`, `duckstation_card()` (XDG paths) | ✅ Done |
 | `crates/dw1/src/settings.rs` | XDG settings path (`config_dir()/settings.txt`) | ✅ Done |
 | `crates/dw1/src/window/snapshot.rs` | XDG reports path (`data_dir()/reports/`) | ✅ Done |
-| `crates/dw1/src/main.rs` | Crash handler (SIGSEGV/SIGBUS via Linux x86_64 ucontext), DuckStation path | ✅ Done |
-| `crates/dw1/src/window/splash.rs` | "Native Mac build" text | ⬜ Pending |
+| `crates/dw1/src/main.rs` | Crash handler (Linux x86_64: `sigaction`/`sigaltstack` + libgcc `backtrace()`), DuckStation path | ✅ Done |
+| `crates/dw1/src/window/splash.rs` | "Native Mac build" text → "Native Linux build" | ✅ Done |
 | `packaging/Info.plist.in` | Deleted (macOS-only) | ✅ Done |
 | `tools/make-app.sh` | Deleted (macOS-only) | ✅ Done |
 | `tools/make-icon.py` | Deleted (macOS-only) | ✅ Done |
@@ -232,17 +173,21 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 ### Phase 2: Window/Renderer
 - ✅ Build with SDL3 + Vulkan
 - ✅ Window opens and displays title screen
-- ⬜ Verify rendering matches (may need shader adjustments)
+- ✅ Reaches the main menu, starts a new game and loads the first map
+- ⬜ Verify rendering matches the original (may need shader adjustments)
 
 ### Phase 3: Full Game
-- ⬜ Test save system with XDG paths
-- ⬜ Test controls on Linux
-- ⬜ Test audio (SDL3 audio should work)
+- ✅ Save system with XDG paths (save/load works)
+- ✅ Controls on Linux (keyboard and gamepad)
+- ✅ Audio (SDL3/ALSA)
+- ✅ Splash screen says "Native Linux build"
+- ✅ Crash trace on Linux (`DW1_CRASH_TRACE`)
 
 ### Phase 4: Packaging
-- ⬜ Create .desktop file
-- ⬜ Test installation
+- ✅ `.desktop` file and icon (`tools/make-linux.sh`)
+- ⬜ Test installation (`tools/make-linux.sh --install`)
 - ⬜ Test icon display
+- ⬜ Certified replays (43) against the PCSX-Redux oracle on Linux
 
 ---
 
@@ -250,7 +195,7 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 
 ### 1. Endianness
 - PS1 is little-endian
-- Both macOS (arm64) and Linux (x86_64/arm64) are little-endian
+- Linux x86_64 is little-endian
 - No changes needed
 
 ### 2. Integer Sizes
@@ -263,13 +208,20 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 
 ### 4. Alignment
 - PS1 had specific alignment requirements
-- macOS arm64 and Linux x86_64 may differ
+- The host (x86_64) may differ
 - Watch for alignment-related bugs
 
 ### 5. File Systems
-- macOS is case-insensitive by default
-- Linux is case-sensitive
+- Linux is case-sensitive (macOS was not)
 - Ensure all file paths use consistent case
+
+### 6. Host ABI details still assumed from the macOS build
+- `crates/decomp-c/include/setjmp.h` declares `jmp_buf` as 48 ints (192 bytes), which was
+  arm64 macOS's `_JBLEN`. On x86_64 glibc a `jmp_buf` is a 200-byte struct, but `_setjmp` (the
+  mask-less variant used here) only stores 68 bytes, so it works; if the script interpreter ever
+  behaves oddly after a `longjmp`, check this first.
+- Stack walks use libgcc's `backtrace()` (unwind tables), not frame pointers: keep it that way
+  if the build flags change.
 
 ---
 
@@ -299,19 +251,19 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 
 ### File Paths Summary
 
-| Purpose | macOS Path | Linux Path (XDG) |
+| Purpose | macOS Path (old) | Linux Path (XDG) |
 |---------|-----------|------------------|
-| Saves | `~/Library/Application Support/dw1-silicon/saves/` | `~/.local/share/dw1-linux/saves/` |
+| Saves | `~/Library/Application Support/dw1-silicon/saves/` | `~/.local/share/dw1-linux/card<N>.mcd` |
 | Settings | `~/Library/Application Support/dw1-silicon/settings.txt` | `~/.config/dw1-linux/settings.txt` |
 | Reports | `~/Library/Application Support/dw1-silicon/reports/` | `~/.local/share/dw1-linux/reports/` |
 | DuckStation cards | `~/Library/Application Support/DuckStation/memcards/` | `~/.local/share/duckstation/memcards/` |
 
 ### Reference documents
 
-- **`README-linux.md`** — Project summary and step-by-step to compile/run on Linux (in English).
-- **`tools/build-linux.sh`** — Linux build script (run inside Docker via `./compile`).
+- **`README.md`** — Project summary and step-by-step to compile/run on Linux (in English).
+- **`tools/build-linux.sh`** — Linux build script (run inside Docker via `./compile` / `./do`).
 - **`external/`** — Gitignored folder for your legal `.cue`/`.bin` game disc.
-- **`docs/linux-port/`** — Detailed port plan (7 phases, one document per phase).
+- **`docs/`** — Original port plan and phase documents (`phase*-plan.md`, `s0*-*.md`).
 - **`LINUX_PORT_STATUS.md`** — Phase progress checklist.
 - **`LINUX_PORT_DECISIONS.md`** — Design decisions made.
 
@@ -320,7 +272,8 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 **The project is Linux-only. macOS support has been intentionally removed.**
 
 - `crates/decomp-c/build.rs` no longer contains any macOS-specific code
-- `crates/psyq/src/memory.rs` uses `#[cfg(target_os = "macos")]` to keep Mach-O symbols for macOS, ELF `dl_iterate_phdr` for Linux
+- `crates/psyq/src/memory.rs` uses `__data_start` plus the real ELF `PT_LOAD` segment limit via
+  `dl_iterate_phdr` (no `#[cfg(target_os = "macos")]` branches remain anywhere)
 - The code compiles on Linux x86_64
 
 ### Tool Replacements
@@ -345,6 +298,12 @@ wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "wg
 
 ## Conclusion
 
-The port to Linux is feasible. Build compiles and links. Vulkan renderer opens a window. Game runs to the first map load, where a `__DATA` segment limit crash needs the `dl_iterate_phdr` fix in `crates/psyq/src/memory.rs` to be tested. Remaining work is platform adaptation (paths, crash handler, packaging), not build breakage.
+The Linux port builds and runs: Vulkan window, title screen, intro skip, main menu, new game,
+naming dialog and first map. The PS1 SDK, overlays, saves/settings/reports (XDG), audio,
+controls, Linux crash traces and Linux packaging are all in place, and game C in
+`decomp/src/` can be edited and recompiled. The remaining work is verification (certified
+replays against the PCSX-Redux oracle on Linux) and cosmetic cleanup of comments that still
+mention the old Mac build.
 
-The core game logic (decomp C + PS1 library reimplementation) remains largely unchanged as it's already cross-platform Rust with appropriate abstractions.
+The core game logic (decomp C + PS1 library reimplementation) remains largely unchanged as it's
+already cross-platform Rust with appropriate abstractions.

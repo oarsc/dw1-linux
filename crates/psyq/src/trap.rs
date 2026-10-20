@@ -2,7 +2,7 @@
 //!
 //! The game C links against every SDK function it calls from the start (Phase 1); the ones
 //! nobody has written yet stop the program with their name instead of doing something
-//! plausible. A stub takes no arguments: on arm64 the caller's arguments sit unread in
+//! plausible. A stub takes no arguments: in the host ABI the caller's arguments sit unread in
 //! registers, and nothing returns, so the C prototype doesn't matter.
 
 /// Called with the message just before the program stops (`stop`, `unimplemented`): the app
@@ -31,8 +31,9 @@ pub fn unimplemented(name: &str) -> ! {
     let message =
         format!("psyq: unimplemented SDK call `{name}` (trapping stub; see crates/psyq/src/stubs.rs)");
     eprintln!("{message}");
-    // Which game code asked: walk the frame pointers (arm64 macOS always keeps them; Rust's
-    // own unwinder stops early in this panic=abort build) and print the callers' symbols.
+    // Which game code asked: walk the stack with libgcc's backtrace() (it uses the unwind
+    // tables Rust emits; the compiler's own unwinder stops early in this panic=abort build)
+    // and print the callers' symbols.
     unsafe extern "C" {
         fn backtrace(buffer: *mut *mut std::ffi::c_void, size: i32) -> i32;
         fn backtrace_symbols_fd(buffer: *const *mut std::ffi::c_void, size: i32, fd: i32);
