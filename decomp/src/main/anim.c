@@ -321,6 +321,25 @@ void tickAnimation(Entity *entity)
 				*instrPtrPtr = anim->loopStart;
 			}
 			break;
+#ifdef DW1_NATIVE
+		case 0x3000: {
+			int16_t *q;
+			int32_t texSrcX, texSrcY, texW, texH, texDstX, texDstY;
+
+			(*instrPtrPtr)++;
+			q = *instrPtrPtr;
+			texSrcX = anim->textureX + ((q[0] & 0xff00) >> 8);
+			texSrcY = anim->textureY + (q[0] & 0xff);
+			texW = (q[1] & 0xff00) >> 8;
+			texH = q[1] & 0xff;
+			texDstX = anim->textureX + ((q[2] & 0xff00) >> 8);
+			texDstY = anim->textureY + (q[2] & 0xff);
+			(*instrPtrPtr) += 3;
+			setRECT(&rect, texSrcX, texSrcY, texW, texH);
+			MoveImage(&rect, texDstX, texDstY);
+			break;
+		}
+#else
 		case 0x3000:
 			(*instrPtrPtr)++;
 			setRECT(&rect,
@@ -332,6 +351,7 @@ void tickAnimation(Entity *entity)
 				  anim->textureX + ((**instrPtrPtr & 0xff00) >> 8),
 				  anim->textureY + (*(*instrPtrPtr)++ & 0xff));
 			break;
+#endif
 		case 0x4000:
 			(*instrPtrPtr)++;
 			bankId = (**instrPtrPtr & 0xff00) >> 8;
