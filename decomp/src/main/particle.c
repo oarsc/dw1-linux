@@ -141,18 +141,9 @@ void tickHealingParticles(int32_t instance) {
         entry2 = &entries2[particle->frameId % 5];
         for (i = 0; i < 4; i++) {
             angle = lerp(0, 512, 0, 13, particle->frameId);
-#ifdef DW1_NATIVE
-            /* The PS1's DIV doesn't trap on a zero divisor: with a positive dividend LO is
-             * 0xFFFFFFFF, so 512 / 0 gives -1. The host's idiv raises SIGFPE, and i is 0
-             * on the first pass (the healing item's effect crashed here). */
-            if (i == 0) {
-                angle -= 1;
-            } else {
-                angle += 512 / (i * 13 / 4);
-            }
-#else
-            angle += 512 / (i * 13 / 4);
-#endif
+            /* i is 0 on the first pass, so this divides by zero: the PS1's DIV gives -1
+             * there, and the host's idiv used to raise SIGFPE (dw/types.h, DW1_DIV). */
+            angle += DW1_DIV(512, i * 13 / 4);
 
             entry2->counter = 5;
 

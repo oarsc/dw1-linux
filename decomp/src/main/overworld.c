@@ -893,10 +893,12 @@ int32_t tickMoveObjectTo(uint8_t objectIndex, uint8_t moveIndex,
                          int8_t steps, int16_t targetX, int16_t targetY)
 {
 	if (MAP_OBJECT_MOVE_TO_DATA[moveIndex] == 0) {
+		/* steps is script data and can be 0: the PS1's DIV returns ±1 there, and the
+		 * clamps below then snap the object onto the target. */
 		MOVE_OBJECT_DELTA_X[moveIndex] =
-			(targetX - MAP_TILE_DATA.objects[objectIndex].x) / steps;
+			DW1_DIV(targetX - MAP_TILE_DATA.objects[objectIndex].x, steps);
 		MOVE_OBJECT_DELTA_Y[moveIndex] =
-			(targetY - MAP_TILE_DATA.objects[objectIndex].y) / steps;
+			DW1_DIV(targetY - MAP_TILE_DATA.objects[objectIndex].y, steps);
 		MAP_OBJECT_MOVE_TO_DATA[moveIndex] = 1;
 	}
 

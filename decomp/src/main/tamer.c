@@ -1131,18 +1131,22 @@ int32_t tickEntityMoveTo(scriptId1, scriptId2, targetX, targetZ, speed,
 	entity = getEntityFromScriptId(&scriptId1);
 	if (PREVIOUS_CAMERA_POS_INITIALIZED == 0) {
 		if (scriptId2 == 0xff) {
+			/* speed is script data and can be 0: the PS1's DIV returns ±1 then
+			 * (dw/types.h, DW1_DIV) */
 			MOVE_TO_DELTA_X =
-				(targetX - entity->posData->location.vx) / speed;
+				DW1_DIV(targetX - entity->posData->location.vx, speed);
 			MOVE_TO_DELTA_Z =
-				(targetZ - entity->posData->location.vz) / speed;
+				DW1_DIV(targetZ - entity->posData->location.vz, speed);
 		} else {
 			targetEntity = getEntityFromScriptId(&scriptId2);
-			MOVE_TO_DELTA_X =
-				(targetEntity->posData->location.vx -
-				 entity->posData->location.vx) / speed;
-			MOVE_TO_DELTA_Z =
-				(targetEntity->posData->location.vz -
-				 entity->posData->location.vz) / speed;
+			MOVE_TO_DELTA_X = DW1_DIV(
+				targetEntity->posData->location.vx -
+					entity->posData->location.vx,
+				speed);
+			MOVE_TO_DELTA_Z = DW1_DIV(
+				targetEntity->posData->location.vz -
+					entity->posData->location.vz,
+				speed);
 		}
 		PREVIOUS_CAMERA_POS_INITIALIZED = 1;
 		PREVIOUS_CAMERA_POS = entity->posData->location;
@@ -1214,7 +1218,7 @@ int32_t tickEntityMoveToAxis(scriptId, target, axis, speed, withCamera)
 	}
 
 	if (PREVIOUS_CAMERA_POS_INITIALIZED == 0) {
-		MOVE_TO_DELTA_X = (target - *axisValue) / speed;
+		MOVE_TO_DELTA_X = DW1_DIV(target - *axisValue, speed);
 		PREVIOUS_CAMERA_POS = entity->posData->location;
 		PREVIOUS_CAMERA_POS_INITIALIZED = 1;
 	} else {

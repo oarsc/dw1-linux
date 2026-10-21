@@ -245,6 +245,17 @@ it uses the host's `~/.cargo`.
 - Stack walks use libgcc's `backtrace()` (unwind tables), not frame pointers: keep it that way
   if the build flags change.
 
+### 7. Integer division by zero and `INT32_MIN / -1`
+- The R3000A's `DIV` never traps: a zero divisor gives LO = -1 for a non-negative dividend
+  (1 for a negative one), and `INT32_MIN / -1` gives `INT32_MIN`. The host's `idiv` raises
+  SIGFPE on both, so game C that divides by a script or data value must use `DW1_DIV(a, b)`
+  (`decomp/include/dw/types.h`, where the native build's `dw1_div` gives the PS1's results;
+  the PS1 build keeps the plain `/`) instead of `/`. `tickMoveObjectTo`/`tickEntityMoveTo*` and
+  the healing particles do; an Amida Forest enemy attack crashed on a zero step
+  (docs/bugs.md).
+- The game's divisions on values that are always non-zero (constants, array sizes, screen
+  dimensions) need nothing; the PS1's `DIV` is not emulated globally.
+
 ---
 
 ## Notes from PLAN.md

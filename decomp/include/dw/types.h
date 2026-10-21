@@ -63,4 +63,27 @@ typedef unsigned int uintptr_t;
 #define DW1_WRAP_INDEX(n) ((uint32_t)(n))
 #endif
 
+/*
+ * A signed 32-bit division of the game C. The R3000A's DIV doesn't trap: with a zero divisor LO
+ * comes out as -1 for a non-negative dividend and 1 for a negative one, and INT32_MIN / -1 wraps
+ * to INT32_MIN, all of which the game's callers rely on (a script's zero step or speed, for
+ * instance). The host's idiv raises SIGFPE on both instead, so the divisions a script or a data
+ * value can drive to zero go through this; on the PS1 it's the plain `/`.
+ */
+#ifdef DW1_NATIVE
+static inline int32_t dw1_div(int32_t dividend, int32_t divisor)
+{
+	if (divisor == 0) {
+		return (dividend >= 0) ? -1 : 1;
+	}
+	if (divisor == -1) {
+		return (int32_t)(0u - (uint32_t)dividend);
+	}
+	return dividend / divisor;
+}
+#define DW1_DIV(a, b) dw1_div((a), (b))
+#else
+#define DW1_DIV(a, b) ((a) / (b))
+#endif
+
 #endif
