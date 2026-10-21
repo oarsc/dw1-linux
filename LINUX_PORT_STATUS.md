@@ -52,6 +52,7 @@ PCSX-Redux oracle on Linux, and testing `tools/make-linux.sh --install`.
 | 6 | Splash screen text | ✅ | `crates/dw1/src/window/splash.rs`: "Native Linux build, written in Rust" |
 | 7 | Window, audio, controls, saves | ✅ | Vulkan window, SDL3/ALSA audio, keyboard+gamepad, XDG save/load all exercised |
 | 7 | 43 certified replays pass on Linux | ⬜ | Not run yet against the PCSX-Redux oracle |
+| 7 | Replays can name the native game code's functions | ✅ | `crates/dw1/build.rs` links the binary with `-rdynamic`; without it `dladdr` gave addresses, the replay could not match its polls and no checkpoint was comparable |
 | — | Edit C of `dw_decomp` for mod/correction | ✅ | `decomp/src/` edited and recompiled (healing effect, texture loading) |
 
 ---
@@ -114,6 +115,9 @@ Pending verification: the 43 certified replays have not been run on Linux yet.
   libgcc `backtrace()`/`backtrace_symbols_fd()` for SIGSEGV/SIGBUS/SIGFPE. Enabled by default;
   `DW1_CRASH_TRACE=0` disables it.
 - `crates/dw1/Cargo.toml`: added `libc` dependency.
+- `crates/dw1/build.rs`: links the binary with `-rdynamic` on Linux, so the replays can name the
+  native game code's functions with `dladdr` (before, every replay checkpoint came out as an
+  address and the replay could not match its polls).
 - `crates/dw1/src/window/splash.rs`: splash text is "Native Linux build, written in Rust".
 - `packaging/dw1.desktop.in`: new `.desktop` template for Linux desktop integration.
 - `tools/make-linux.sh`: new Linux packaging script (builds release binary, `--install`
