@@ -5,9 +5,9 @@
 //! loads. Natively the overlays' C is linked once, so this module arranges the same:
 //!
 //! - every overlay C file whose `.data` the original `overlay.ld` places in an overlay is compiled
-//!   through a generated wrapper that puts the file's data in two sections of its own per overlay:
-//!   initialised data in `__DATA,__dw1_<u>`, zero-initialised and uninitialised data in
-//!   `__DATA,__dw1_<u>z`;
+//!   through a generated wrapper, alone, and its data is moved to two sections of its own per
+//!   overlay with `objcopy` (`data_section_renames`): initialised data in `dw1_<u>`,
+//!   zero-initialised and uninitialised data in `dw1_<u>z`;
 //! - the wrapper also lists the variables a reload must not touch, with their native sizes: the
 //!   file's resident variables (names the main symbol list places in the main executable, at
 //!   0x80090000 and up) and its definitions without an initialiser (the PS1's overlay `.bss`,
@@ -49,10 +49,70 @@ pub const OVERLAY_IDS: &[(&str, u32)] = &[
 /// resident.
 const MAIN_BASE: u32 = 0x8009_0000;
 
-/// The section an overlay's initialised data goes in (ELF section names on Linux).
-/// Its zero-initialised and uninitialised data go in this name plus `z`.
+/// The section an overlay's initialised data goes in. Its zero-initialised and uninitialised data
+/// go in this name plus `z`. No leading dot: GNU ld only defines the `__start_<name>` and
+/// `__stop_<name>` symbols (the section bounds, `bounds_c`) for names that are C identifiers.
 pub fn section(unit: &str) -> String {
-    format!(".dw1_{}", unit.to_lowercase())
+    format!("dw1_{}", unit.to_lowercase())
+}
+
+/// The `objcopy` arguments that move a wrapper object's data to the overlay's sections (module
+/// docs): every initialised-data section (`.data`, `.data.rel.*`) to `dw1_<u>` and every
+/// zero-initialised one (`.bss`) to `dw1_<u>z`. The wrapper is compiled on its own, so those
+/// sections hold that file's definitions only; the relocation sections keep pointing at them (by
+/// index), so the link still applies them.
+///
+/// Also says which of the two sections the object contributes, so `bounds_c` only names the ones
+/// the link will have (`__start_<section>` of a section nothing defines is an error).
+pub fn data_section_renames(obj: &Path, unit: &str) -> (Vec<String>, bool, bool) {
+    let data = section(unit);
+    let zero = format!("{data}z");
+    let mut args = Vec::new();
+    let (mut has_data, mut has_zero) = (false, false);
+    for (name, kind, size) in object_sections(obj) {
+        // An empty section (`cc` always emits a `.bss`) would leave `__start_<section>` undefined.
+        let target = match kind.as_str() {
+            "PROGBITS" if size > 0 && (name == ".data" || name.starts_with(".data.")) => {
+                has_data = true;
+                &data
+            }
+            "NOBITS" if size > 0 && (name == ".bss" || name.starts_with(".bss.")) => {
+                has_zero = true;
+                &zero
+            }
+            _ => continue,
+        };
+        args.push("--rename-section".to_string());
+        args.push(format!("{name}={target}"));
+    }
+    (args, has_data, has_zero)
+}
+
+/// An object's sections, as their (name, type, size), from `readelf`.
+fn object_sections(obj: &Path) -> Vec<(String, String, u64)> {
+    let out = std::process::Command::new("readelf")
+        .args(["--wide", "--section-headers"])
+        .arg(obj)
+        .output()
+        .unwrap_or_else(|e| panic!("readelf {}: {e}", obj.display()));
+    assert!(
+        out.status.success(),
+        "readelf {}: {}",
+        obj.display(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| {
+            // `  [ 5] .data     PROGBITS  0000000000000000 000040 000018 00  WA  0   0  1`
+            let rest = l.trim_start().strip_prefix('[')?;
+            let mut fields = rest.split_once(']')?.1.split_whitespace();
+            let name = fields.next()?.to_string();
+            let kind = fields.next()?.to_string();
+            let size = u64::from_str_radix(fields.nth(2)?, 16).ok()?;
+            Some((name, kind, size))
+        })
+        .collect()
 }
 
 /// The C files whose `.data` `overlay.ld` places in an overlay (`src/....c.o(.data.*)`).
@@ -304,6 +364,16 @@ fn declarator_name(decl: &[&str]) -> Option<String> {
 
 /// A C identifier for a file's keep list.
 fn keep_symbol(unit: &str, rel: &str) -> String {
+    file_symbol("DW1_KEEP", unit, rel)
+}
+
+/// A C identifier for a file's data anchors (`wrapper`).
+fn anchor_symbol(unit: &str, rel: &str) -> String {
+    file_symbol("DW1_ANCHOR", unit, rel)
+}
+
+/// A C identifier `<prefix>_<unit>_<file stem>` for something the wrapper defines.
+fn file_symbol(prefix: &str, unit: &str, rel: &str) -> String {
     let stem: String = Path::new(rel)
         .file_stem()
         .unwrap()
@@ -311,7 +381,7 @@ fn keep_symbol(unit: &str, rel: &str) -> String {
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect();
-    format!("DW1_KEEP_{}_{stem}", unit.to_lowercase())
+    format!("{prefix}_{}_{stem}", unit.to_lowercase())
 }
 
 /// The variables of a file a reload must not touch: its resident definitions and its definitions
@@ -333,8 +403,15 @@ pub fn keeps(defs: &[(String, bool)], resident: &BTreeSet<String>) -> Vec<String
 
 /// The wrapper TU for an overlay data file: the file itself (`include` is the path to compile:
 /// the original, or its CP932 copy). Data ends up in `.data`/`.bss` and is renamed to the
-/// overlay's ELF sections by `objcopy` in build.rs, then the list of variables a reload keeps.
-pub fn wrapper(unit: &str, rel: &str, include: &Path, keeps: &[String]) -> String {
+/// overlay's ELF sections by `objcopy` in build.rs, then the list of variables a reload keeps
+/// (`keeps`) and the anchors that keep the data (all its `defs`).
+pub fn wrapper(
+    unit: &str,
+    rel: &str,
+    include: &Path,
+    defs: &[(String, bool)],
+    keeps: &[String],
+) -> String {
     let mut s = format!(
         "/* Generated by crates/decomp-c/build.rs (overlays.rs): {rel}, overlay {unit}. */\n\
          #include \"{inc}\"\n\
@@ -347,58 +424,57 @@ pub fn wrapper(unit: &str, rel: &str, include: &Path, keeps: &[String]) -> Strin
         s.push_str(&format!("\t{{ (void *)&{k}, sizeof({k}) }},\n"));
     }
     s.push_str("\t{ 0, 0 },\n};\n");
+    // The linker garbage collects sections nothing references, and in a binary where the game's
+    // code is dead (the tests) that takes the files' data with it. Taking every definition's
+    // address in a retained array keeps the sections it lives in, as the PS1's file would.
+    s.push_str(&format!(
+        "\n/* Keeps the file's data with --gc-sections. */\n\
+         __attribute__((retain)) const void *const {anchors}[] = {{\n",
+        anchors = anchor_symbol(unit, rel),
+    ));
+    for (name, _) in defs {
+        s.push_str(&format!("\t(const void *)&{name},\n"));
+    }
+    s.push_str("\t0,\n};\n");
     s
 }
 
-/// The C side of the table (compiled into the overlay archive): the section bounds.
-/// Symbols `__dw1_<u>_start`, `__dw1_<u>_end`, `__dw1_<u>z_start`, `__dw1_<u>z_end` are
-/// defined by `overlay_sections.S` (generated by build.rs), one pair per overlay section.
-pub fn bounds_c(files: &BTreeMap<String, Vec<String>>) -> String {
+/// The C side of the table (compiled into the overlay archive): the section bounds, the
+/// `__start_<section>` / `__stop_<section>` symbols GNU ld defines for each overlay's sections
+/// (see `section`). `files` says, per overlay unit, which of its two sections the wrappers
+/// contribute (initialised data, zero-initialised data).
+pub fn bounds_c(files: &BTreeMap<String, (bool, bool)>) -> String {
+    // The bounds of a unit's sections; a unit with only one of the two (no `.bss`, e.g. ENDI)
+    // points the other's range at its start, so it is empty.
+    let bounds = |unit: &str, data: bool, zero: bool| {
+        let sec = section(unit);
+        let d = (format!("__start_{sec}"), format!("__stop_{sec}"));
+        let z = (format!("__start_{sec}z"), format!("__stop_{sec}z"));
+        match (data, zero) {
+            (true, true) => (d, z),
+            (true, false) => (d.clone(), (d.0.clone(), d.0)),
+            (false, true) => ((z.0.clone(), z.0.clone()), z),
+            (false, false) => panic!("overlay {unit}: no data sections"),
+        }
+    };
     let mut s = String::from("/* Generated by crates/decomp-c/build.rs (overlays.rs). */\n");
-    for unit in files.keys() {
-        let u = unit.to_lowercase();
+    for (unit, &(data, zero)) in files {
+        let (d, z) = bounds(unit, data, zero);
         s.push_str(&format!(
-            "extern char dw1_{u}_start[];\n\
-             extern char dw1_{u}_end[];\n\
-             extern char dw1_{u}_zstart[];\n\
-             extern char dw1_{u}_zend[];\n"
+            "extern char {}[], {}[], {}[], {}[];\n",
+            d.0, d.1, z.0, z.1
         ));
     }
     s.push_str("int dw1_overlay_bounds(int id, char **start, char **end, char **zstart, char **zend)\n{\n\tswitch (id) {\n");
-    for unit in files.keys() {
+    for (unit, &(data, zero)) in files {
         let id = OVERLAY_IDS.iter().find(|(u, _)| u == unit).unwrap().1;
-        let u = unit.to_lowercase();
+        let (d, z) = bounds(unit, data, zero);
         s.push_str(&format!(
-            "\tcase {id}:\n\t\t*start = dw1_{u}_start;\n\t\t*end = dw1_{u}_end;\n\t\t*zstart = dw1_{u}_zstart;\n\t\t*zend = dw1_{u}_zend;\n\t\treturn 1;\n"
+            "\tcase {id}:\n\t\t*start = {};\n\t\t*end = {};\n\t\t*zstart = {};\n\t\t*zend = {};\n\t\treturn 1;\n",
+            d.0, d.1, z.0, z.1
         ));
     }
     s.push_str("\t}\n\treturn 0;\n}\n");
-    s
-}
-
-/// Assembly defining `dw1_<u>_start` / `dw1_<u>_end` / `dw1_<u>_zstart` / `dw1_<u>_zend`
-/// for each overlay section. On Linux x86_64 C symbols have no underscore prefix, so these
-/// are the exact names `overlay_bounds.c` references.
-pub fn overlay_sections_asm(files: &BTreeMap<String, Vec<String>>) -> String {
-    let mut s = String::from("/* Generated by crates/decomp-c/build.rs (overlays.rs). */\n");
-    for unit in files.keys() {
-        let u = unit.to_lowercase();
-        let sec = section(unit);
-        let sec_z = format!("{}z", sec);
-        s.push_str(&format!(
-            "\n.section {sec},\"aw\",@progbits\n\
-             .global dw1_{u}_start\n\
-             .global dw1_{u}_end\n\
-             dw1_{u}_start:\n\
-             dw1_{u}_end:\n\
-             \n\
-             .section {sec_z},\"aw\",@nobits\n\
-             .global dw1_{u}_zstart\n\
-             .global dw1_{u}_zend\n\
-             dw1_{u}_zstart:\n\
-             dw1_{u}_zend:\n"
-        ));
-    }
     s
 }
 

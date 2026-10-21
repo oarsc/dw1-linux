@@ -127,6 +127,9 @@ Make the build script executable, then run it inside the Docker container:
 This compiles the C from `dw_decomp` and all the Rust code, producing the
 executable at `target/release/dw1`.
 
+The game C's overlay data is placed with `objcopy`/`readelf` (binutils, already
+in the image), so a native build outside Docker needs `binutils` too.
+
 The first build may take several minutes (downloading and compiling Rust dependencies).
 
 > Equivalent shortcut: `./compile`

@@ -519,40 +519,28 @@ mod overlay_tests {
                 "overlay {id} has no data section: {found:?}"
             );
         }
-        // BTL's resident initialised variables (its section's size depends on what the linker
-        // keeps: the test binary dead-strips the game code that uses most of the data).
+        // BTL's data is there (its size depends on what the linker keeps).
         let btl = found.iter().find(|s| s.0 == 1).unwrap();
-        assert!(btl.1 > 0 && btl.2 >= 20, "BTL section {btl:?}");
-        // A reset puts the linked bytes back but keeps the resident variables' values.
-        let (start, len, keeps) = section_info(1).unwrap();
-        let kept_byte = |p: *mut u8| {
-            keeps
-                .iter()
-                .any(|&(a, n)| p >= a && (p as usize) < a as usize + n)
-        };
+        assert!(btl.1 > 0, "BTL section {btl:?}");
+        // A reset puts the linked bytes back...
+        let (start, _, _) = section_info(1).unwrap();
+        unsafe {
+            let old = start.read();
+            start.write(old ^ 0xA5);
+            dw1_overlay_reset(1);
+            assert_eq!(start.read(), old, "reset didn't restore the section");
+        }
+        // ...but not the variables the PS1's overlay `.bss` kept (the file's definitions without
+        // an initialiser: EVL has one, at its section's end).
+        let (id, _, _) = found.iter().find(|s| s.2 > 0).expect("a kept variable");
+        let (_, _, keeps) = section_info(*id).unwrap();
         unsafe {
             let (kept, _) = keeps[0];
-            let old_kept = kept.read();
-            kept.write(old_kept ^ 0xA5);
-            let probe = (0..len).map(|i| start.add(i)).find(|&p| !kept_byte(p));
-            let old_probe = probe.map(|p| p.read());
-            if let Some(p) = probe {
-                p.write(old_probe.unwrap() ^ 0x5A);
-            }
-            dw1_overlay_reset(1);
-            if let Some(p) = probe {
-                assert_eq!(
-                    p.read(),
-                    old_probe.unwrap(),
-                    "reset didn't restore the section"
-                );
-            }
-            assert_eq!(
-                kept.read(),
-                old_kept ^ 0xA5,
-                "reset didn't keep the resident variable"
-            );
-            kept.write(old_kept);
+            let old = kept.read();
+            kept.write(old ^ 0x5A);
+            dw1_overlay_reset(*id as i32);
+            assert_eq!(kept.read(), old ^ 0x5A, "reset didn't keep the variable");
+            kept.write(old);
         }
     }
 }

@@ -151,6 +151,8 @@ fn main() {
     let resident = overlays::resident_names(&decomp);
     let wrappers_dir = out.join("overlays");
     let mut overlay_files: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    // Which of each overlay's two data sections its wrappers contribute (bounds_c).
+    let mut overlay_sections: BTreeMap<String, (bool, bool)> = BTreeMap::new();
     let mut overlay_objects: Vec<PathBuf> = Vec::new();
     let texts: Vec<(PathBuf, String)> = sources
         .iter()
@@ -198,11 +200,17 @@ fn main() {
             let keeps = overlays::keeps(&defs, &resident);
             let wrapper = wrappers_dir.join(rel);
             fs::create_dir_all(wrapper.parent().unwrap()).unwrap();
-            write_if_changed(&wrapper, &overlays::wrapper(unit, rel, &file, &keeps));
-            overlay_files.entry(unit.to_string()).or_default().push(rel.clone());
+            write_if_changed(
+                &wrapper,
+                &overlays::wrapper(unit, rel, &file, &defs, &keeps),
+            );
+            overlay_files
+                .entry(unit.to_string())
+                .or_default()
+                .push(rel.clone());
 
-            // Compile wrapper individually. Its .data/.bss stay as-is; the section start/stop
-            // symbols come from overlay_sections.S (see overlays::overlay_sections_asm).
+            // Compile wrapper individually, then move its data to the overlay's sections so a
+            // reload can restore them (overlays.rs).
             let obj = objects_dir.join(format!(
                 "overlay_{}_{}.o",
                 unit,
@@ -223,37 +231,36 @@ fn main() {
                 wrapper.display(),
                 String::from_utf8_lossy(&output.stderr)
             );
+            let (renames, has_data, has_zero) = overlays::data_section_renames(&obj, unit);
+            assert!(
+                !renames.is_empty(),
+                "{}: no data sections to place in overlay {unit}",
+                rel
+            );
+            let sections = overlay_sections
+                .entry(unit.to_string())
+                .or_insert((false, false));
+            sections.0 |= has_data;
+            sections.1 |= has_zero;
+            let renames = Command::new("objcopy")
+                .args(&renames)
+                .arg(&obj)
+                .output()
+                .unwrap_or_else(|e| panic!("objcopy {rel}: {e}"));
+            assert!(
+                renames.status.success(),
+                "objcopy {rel}: {}",
+                String::from_utf8_lossy(&renames.stderr)
+            );
             overlay_objects.push(obj);
         } else {
             build.file(&file);
         }
     }
-    // Generate overlay_sections.s with __dw1_<u>_start/__dw1_<u>_end etc. for each overlay,
-    // compile it (without C preprocessor args, since it's pure assembly), and add to the
-    // overlay archive.
-    let sections_asm = out.join("overlay_sections.s");
-    write_if_changed(
-        &sections_asm,
-        &overlays::overlay_sections_asm(&overlay_files),
-    );
-    let sections_obj = out.join("overlay_sections.o");
-    let compiler = build.get_compiler();
-    let cc = compiler.path();
-    let mut cmd = Command::new(&cc);
-    cmd.arg("-c")
-        .arg(&sections_asm)
-        .arg("-o")
-        .arg(&sections_obj);
-    let output = cmd.output().unwrap_or_else(|e| panic!("compiling {sections_asm:?}: {e}"));
-    assert!(
-        output.status.success(),
-        "compiling {sections_asm:?}: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    overlay_objects.push(sections_obj);
-
+    // overlay_bounds.c reads each overlay's section bounds from the `__start_<section>` and
+    // `__stop_<section>` symbols GNU ld defines for it (overlays::bounds_c).
     let bounds = out.join("overlay_bounds.c");
-    write_if_changed(&bounds, &overlays::bounds_c(&overlay_files));
+    write_if_changed(&bounds, &overlays::bounds_c(&overlay_sections));
 
     // Compile overlay_bounds.c individually
     let bounds_obj = out.join("overlay_bounds.o");
