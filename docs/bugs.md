@@ -39,6 +39,28 @@ For each bug:
   hand-written version of the same thing.
 - **Status:** fixed
 
+### The depth test showed one model through the one in front of it (2026-10-21)
+
+- **What happened:** outside the tamer's house with the partner right behind him, parts of the
+  Agumon appeared over the tamer (the tamer's face came out half yellow) and patches of it
+  flickered as the two moved; on the Agumon alone, the inside of its mouth showed through the top
+  of its head and its snout.
+- **Where:** anywhere two models overlap on screen about a percent apart in depth, which is what
+  a partner following right behind the tamer looks like.
+- **Snapshot:** `reports/20261021-171155` (scale 5, wobble on, full colour, depth test on).
+- **What it was:** a bug of the depth test. The precise corners are keyed by the integer screen
+  position a packet holds, and two projections within a pixel and 1/64 in depth were taken for
+  one point, keeping the first one's depth. Two models in line are exactly that: their vertices
+  land on the same pixels, about a percent apart in depth, so the farther model's polygons were
+  given the nearer model's depth. Drawn first (the PS1 sorts far to near), they wrote that too
+  near depth and the depth test then dropped the nearer model's own polygons behind them: the
+  farther model showed through. As the two models moved, the merge came and went and the patches
+  flickered.
+- **Status:** fixed on `feature/hd-depth-test`: a place on screen keeps a second depth when two
+  projections there are further apart than 1/1024 (`Cand::z2`), so each model's polygons take
+  the depth that fits their other corners while the position stays merged (no crack at a joint).
+  Test `two_models_at_one_pixel_keep_their_own_depths`.
+
 ### The HD depth test made the 3D models flat-coloured (2026-10-21)
 
 - **What happened:** with the depth test on (F6) and no wobble off, models were drawn with one

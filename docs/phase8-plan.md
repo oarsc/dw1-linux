@@ -159,6 +159,12 @@ where it is not behind what is already there.
   A polygon with any corner the GTE did not project this frame has no depth and is drawn as
   before. A hole in a *texture* (several layers painted into one polygon) is not separated:
   only polygons are.
+- Two models in line put their vertices on the same integer pixels about a percent apart in
+  depth (the partner right behind the tamer is the usual case). `pgxp` keeps such a place as one
+  (so a joint's parts still meet with no crack) but gives it a second depth when the two are
+  further apart than 1/1024, and each model's polygons take the depth that fits their own other
+  corners. Without it the farther model wrote the nearer one's depth and, drawn first, the depth
+  test then dropped the nearer model's own polygons behind it: the farther model showed through.
 
 ## Done when
 
@@ -244,3 +250,12 @@ Ember has looked at them; the widescreen report is written. Then Phase 9.
   seeding the affine `u / v` was tied to `1 / z` *not* being needed, so every pixel sampled the
   texel at (0, 0). The two are independent now; a test draws a depth-tested smooth textured
   triangle and checks the texel at each end.
+- **8.7, one model showing through the one in front (2026-10-21, play):** the partner right behind
+  the tamer put both models' vertices on the same pixels a percent apart in depth, and `pgxp` kept
+  only the first depth there, so the farther model got the nearer one's and the depth test then
+  dropped the nearer model's own polygons (the tamer's face came out yellow, the Agumon's mouth
+  interior through its head, flickering as they moved). A place now keeps a second depth
+  (`Cand::z2`, more than 1/1024 apart); `lookup_poly` steers by the corners nobody can confuse.
+  In a `file-city-walk` capture at scale 5 this takes the picture at the changed pixels from 161
+  to 67 off the PS1's on average over the yard scene (762 pixels better, 323 worse: mostly the
+  Agumon's mouth decal, which the depth test reveals on purpose).

@@ -11,7 +11,10 @@
 //! by value, so entries are keyed by the integer position as a packet will hold it. A key often
 //! has several different points in one frame (distinct vertices less than a pixel apart): each
 //! keeps up to `CANDIDATES` of them, and a polygon picks one per corner so its depths agree
-//! (`lookup_poly`). The integer is the float rounded down, so the float is stored half a pixel
+//! (`lookup_poly`). Two points within a pixel and about the same depth are one place (a joint
+//! projected once per part, or two models in line); a place can hold a second depth, so the model
+//! behind keeps its own depth instead of taking the one in front's. The integer is the float
+//! rounded down, so the float is stored half a pixel
 //! lower: the precise picture then sits where the integer one does on average, and 2D parts
 //! drawn at integer positions line up with it. Entries live from the projection to the end of
 //! the next `DrawOTag` (`end_frame`).
@@ -43,6 +46,10 @@ struct Cand {
     x: f32,
     y: f32,
     z: f32,
+    /// A second view depth for the same place on screen (see `record`): two models can overlap
+    /// here a percent or so apart in depth, and each one's polygons take their own.
+    z2: f32,
+    has2: bool,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -159,6 +166,7 @@ pub fn record(sx: i32, sy: i32, x: f64, y: f64, z: f64, flags: u32) {
                     x: fx,
                     y: fy,
                     z: z as f32,
+                    ..Cand::default()
                 };
                 return;
             }
@@ -166,21 +174,34 @@ pub fn record(sx: i32, sy: i32, x: f64, y: f64, z: f64, flags: u32) {
                 if e.n > CANDIDATES {
                     return;
                 }
-                // The same point again: a shared vertex projected twice, or a joint's vertex
-                // projected once per part (a hair apart). Within a pixel and nearly the same depth
-                // (1/64) it is one point, so the parts meet with no crack between them; the
-                // first projection stands. A point at another depth stays a separate candidate.
-                if e.c[..e.n].iter().any(|c| {
+                // The same place on screen: a shared vertex projected twice, a joint's vertex
+                // projected once per part (a hair apart), or two models in line, one behind the
+                // other (the partner standing right behind the tamer). Within a pixel it is one
+                // place, so the parts meet with no crack between them and the first projection's
+                // position stands. Its depth is one point's, though: the two models at that place
+                // can be a percent or so apart, so a depth clearly off the first (more than
+                // 1/1024, so a joint's own rounding stays one) is kept beside it and each one's
+                // polygons take the depth that fits their other corners (`lookup_poly`). A point
+                // at a depth further off stays a separate candidate.
+                let zf = z as f32;
+                if let Some(c) = e.c[..e.n].iter_mut().find(|c| {
                     let (dx, dy) = (c.x - fx, c.y - fy);
-                    dx * dx + dy * dy <= 1.0 && zdist(c.z, z as f32) <= 1.0 / 64.0
+                    dx * dx + dy * dy <= 1.0
+                        && (zdist(c.z, zf) <= 1.0 / 64.0
+                            || (c.has2 && zdist(c.z2, zf) <= 1.0 / 64.0))
                 }) {
+                    if !c.has2 && zdist(c.z, zf) > 1.0 / 1024.0 {
+                        c.z2 = zf;
+                        c.has2 = true;
+                    }
                     return;
                 }
                 if e.n < CANDIDATES {
                     e.c[e.n] = Cand {
                         x: fx,
                         y: fy,
-                        z: z as f32,
+                        z: zf,
+                        ..Cand::default()
                     };
                     e.n += 1;
                 } else {
@@ -223,6 +244,15 @@ fn nearest(e: &Entry, z: f32) -> usize {
     })
 }
 
+/// The depth of `c` closest to `z`: its first, or the second one when two models reach this place.
+fn depth_at(c: &Cand, z: f32) -> f32 {
+    if c.has2 && zdist(c.z2, z) < zdist(c.z, z) {
+        c.z2
+    } else {
+        c.z
+    }
+}
+
 /// A precise corner: position in the packet's units (draw offset not applied) and view depth.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Precise {
@@ -247,19 +277,34 @@ pub fn lookup_poly(xy: &[(i32, i32)]) -> [Option<Precise>; 4] {
             e[i] = find(t, x, y);
         }
         let mut pick = [0usize; 4];
+        // The depths to steer by: corners nobody can confuse first (one point, one depth there),
+        // else the single-point ones (which may hold two depths), else none (all ambiguous).
+        let mean = |v: Vec<f32>| v.iter().sum::<f32>() / v.len() as f32;
+        let certain: Vec<f32> = e[..n]
+            .iter()
+            .flatten()
+            .filter(|e| e.n == 1 && !e.c[0].has2)
+            .map(|e| e.c[0].z)
+            .collect();
         let singles: Vec<f32> = e[..n]
             .iter()
             .flatten()
             .filter(|e| e.n == 1)
             .map(|e| e.c[0].z)
             .collect();
+        let mut zref = if !certain.is_empty() {
+            Some(mean(certain))
+        } else if !singles.is_empty() {
+            Some(mean(singles))
+        } else {
+            None
+        };
         if let Some(m) = (0..n).find(|&i| e[i].is_some_and(|e| e.n > 1)) {
-            if !singles.is_empty() {
+            if let Some(z) = zref {
                 // Each corner with several points takes the one nearest the others' mean depth.
-                let zref = singles.iter().sum::<f32>() / singles.len() as f32;
                 for i in 0..n {
                     if let Some(ei) = e[i].filter(|e| e.n > 1) {
-                        pick[i] = nearest(ei, zref);
+                        pick[i] = nearest(ei, z);
                     }
                 }
             } else {
@@ -286,6 +331,11 @@ pub fn lookup_poly(xy: &[(i32, i32)]) -> [Option<Precise>; 4] {
                     }
                 }
                 pick = best.unwrap().1;
+                zref = Some(mean(
+                    (0..n)
+                        .filter_map(|i| e[i].map(|e| e.c[pick[i]].z))
+                        .collect(),
+                ));
             }
         }
         let mut out = [None; 4];
@@ -295,7 +345,7 @@ pub fn lookup_poly(xy: &[(i32, i32)]) -> [Option<Precise>; 4] {
                 Precise {
                     x: c.x,
                     y: c.y,
-                    z: c.z,
+                    z: zref.map_or(c.z, |z| depth_at(&c, z)),
                 }
             });
         }
@@ -403,6 +453,31 @@ mod tests {
     }
 
     #[test]
+    fn two_models_at_one_pixel_keep_their_own_depths() {
+        let _g = serial();
+        set_depth_record(true);
+        end_frame();
+        // The partner stands right behind the tamer, so its head covers the tamer's on screen: a
+        // corner of each lands on the same integer pixel, about a percent apart in depth. One
+        // place on screen (their parts meet, no crack), but each model's polygons must keep their
+        // own depth: otherwise the farther model writes the nearer one's depth and the depth test
+        // then drops the nearer model's own polygons that come after it (the farther one shows
+        // through: the tamer's face comes out yellow).
+        record(10, 20, 10.2, 20.3, 12000.0, 0); // the tamer, in front
+        record(30, 40, 30.2, 40.3, 12030.0, 0);
+        record(40, 40, 40.2, 40.3, 12060.0, 0);
+        record(10, 20, 10.7, 20.4, 12180.0, 0); // the partner, behind him, on the same pixel
+        record(30, 20, 30.2, 20.3, 12150.0, 0);
+        record(10, 40, 10.2, 40.3, 12220.0, 0);
+        let p = lookup_poly(&[(10, 20), (30, 20), (10, 40)]);
+        assert_eq!(p[0].map(|p| p.z), Some(12180.0), "the partner's own depth");
+        let q = lookup_poly(&[(10, 20), (30, 40), (40, 40)]);
+        assert_eq!(q[0].map(|p| p.z), Some(12000.0), "the tamer's own depth");
+        // The place is one, so both polygons put the shared corner at the same spot.
+        assert_eq!(p[0].map(|p| (p.x, p.y)), q[0].map(|p| (p.x, p.y)));
+    }
+
+    #[test]
     fn a_joint_projected_once_per_part_is_one_point() {
         let _g = serial();
         set_enabled(true);
@@ -416,8 +491,12 @@ mod tests {
         record(10, 40, 10.5, 40.5, 100.0, 0);
         let a = lookup_poly(&[(10, 20), (30, 20), (10, 40)]);
         let b = lookup_poly(&[(10, 20), (30, 40), (10, 40)]);
-        assert_eq!(a[0], b[0]);
+        // One place: both parts put the joint's corner at the same spot, so no crack opens.
+        assert_eq!(a[0].map(|p| (p.x, p.y)), b[0].map(|p| (p.x, p.y)));
         assert_eq!(a[0].map(|p| p.x), Some(9.7));
+        // The two projections are a hair apart in depth too, so each part's polygon keeps its own.
+        assert_eq!(a[0].map(|p| p.z), Some(100.0));
+        assert_eq!(b[0].map(|p| p.z), Some(100.5));
     }
 
     #[test]
