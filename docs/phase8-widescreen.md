@@ -47,3 +47,22 @@ replays and the RNG must be identical with it on or off.
    naturally), then an allowlist of large maps with captured tiles, pillarboxing everything
    else and every unverified scene. Gate each scene on identical replays with it on.
 3. Labelled an addition, off by default, with pillarbox as the fallback everywhere.
+
+## 2026-10-21: first HD-margin prototype (F10)
+
+The first step above is in: an HD-margin widescreen, labelled an addition and off by default.
+
+- `settings.rs` has `widescreen` (F10, `DW1_WIDE=0/1`). It needs the HD surfaces, so it only
+  acts at render scale 2x+ (`auto` keeps at least 2 while it is on; a fixed 1 leaves it off,
+  and the corner note says so).
+- `backend::hd` widens every HD surface by `WIDE_MARGIN = 53` VRAM pixels each side, draws the
+  HD primitives at +53 and extends their horizontal clip to the whole surface, so the margins
+  show what the game's 320-wide clip hid. The 1x VRAM, the game's calculations and the replays
+  are untouched. A fill that spans the surface's whole VRAM width (the frame clear, a fade)
+  clears the margins too, so nothing smears between frames.
+- `render` has `Fit::WideInteger` and `Fit::Wide` for the 426x240 picture (426:240 is 16:9 to
+  within 0.15%; it is not stretched). The window picks them from the picture's size, so a 4:3
+  picture -- a movie, the splash, or render scale 1 -- stays 4:3 whatever the fit setting.
+- Known to be unhandled, per the survey above: the 5th tile column, pre-culled actors at the
+  edges, full-screen effects and the per-scene allowlist/pillarbox. Expect black or missing art
+  at map edges; the arenas and the middles of the wider maps are the useful parts for now.

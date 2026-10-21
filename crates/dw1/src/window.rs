@@ -11,8 +11,10 @@
 //!
 //! Picture settings (`settings.rs`, kept between runs; a note in the corner says what changed
 //! and whether it's original or an addition): F2 render scale (auto, 1, 2, 3, 4, 6, 8), F3 no
-//! wobble, F4 fit (integer, the original look, or fill at 4:3), F5 full colour, F11 or
-//! Super-Ctrl-F fullscreen. F12 writes a bug snapshot (`snapshot.rs`).
+//! wobble, F4 fit (integer, the original look, or fill), F5 full colour, F10 widescreen (16:9,
+//! an addition; needs render scale 2x+), F11 or Super-Ctrl-F fullscreen. F12 writes a bug
+//! snapshot (`snapshot.rs`). The `Fit` used at 16:9 is picked here from the picture's size, so
+//! a 4:3 picture (a movie, or scale 1) is never stretched.
 //!
 //! Before the game starts, `Window::splash` shows a short text screen (about 2.8 s; any key,
 //! button or click skips it) saying this is the native Linux build. `DW1_NO_SPLASH=1` skips it;
@@ -301,6 +303,7 @@ enum Note {
     Wobble,
     FullColour,
     Fit,
+    Widescreen,
     Fullscreen,
     /// `Window::message`.
     Message,
@@ -328,6 +331,11 @@ impl Note {
             Note::FullColour => "Full colour: off - original".into(),
             Note::Fit if s.fit == Fit::Fill => "Fit: fill window - addition".into(),
             Note::Fit => "Fit: whole multiples - original".into(),
+            Note::Widescreen if s.widescreen && scale > 1 => "Widescreen: 16:9 - addition".into(),
+            Note::Widescreen if s.widescreen => {
+                "Widescreen: 16:9 on (needs render scale 2x+)".into()
+            }
+            Note::Widescreen => "Widescreen: 4:3 - original".into(),
             Note::Fullscreen if s.fullscreen => "Fullscreen (F11 for a window)".into(),
             Note::Fullscreen => "Window (F11 for fullscreen)".into(),
             Note::Message => String::new(),
@@ -532,6 +540,9 @@ impl Window {
                             Fit::Fill
                         }
                     }),
+                    Scancode::F10 => {
+                        self.change(Note::Widescreen, |s| s.widescreen = !s.widescreen)
+                    }
                     Scancode::F11 => self.toggle_fullscreen(),
                     Scancode::F12 => self.bug_snapshot(),
                     Scancode::F if cmd_ctrl => self.toggle_fullscreen(),
@@ -584,6 +595,7 @@ impl Window {
             Note::Wobble => k.no_wobble = s.no_wobble,
             Note::FullColour => k.full_colour = s.full_colour,
             Note::Fit => k.fit = s.fit,
+            Note::Widescreen => k.widescreen = s.widescreen,
             Note::Fullscreen => k.fullscreen = s.fullscreen,
             Note::Message => {}
         }
@@ -617,15 +629,20 @@ impl Window {
         self.refresh_ns = refresh_ns(&self.window);
     }
 
-    /// Sets the GPU's render scale (and no wobble, full colour) for a window `pw x ph` pixels: changes only
-    /// when the settings or the window's size call for another scale.
+    /// Sets the GPU's render scale (and no wobble, full colour, widescreen) for a window
+    /// `pw x ph` pixels: changes only when the settings or the window's size call for another
+    /// scale. Widescreen needs the HD surfaces, so it only takes effect above scale 1.
     fn apply_scale(&self, pw: u32, ph: u32) -> u32 {
         let (_, _, _, shown_h) = render::place(self.settings.fit, 320, 240, pw, ph);
         let scale = self.settings.scale_for(shown_h);
         let wobble_off = scale > 1 && self.settings.no_wobble;
+        let wide = scale > 1 && self.settings.widescreen;
         psyq::gpu::with(|g| {
             if g.scale() != scale {
                 g.set_scale(scale);
+            }
+            if g.wide() != wide {
+                g.set_wide(wide);
             }
             if g.full_colour() != self.settings.full_colour {
                 g.set_full_colour(self.settings.full_colour);
@@ -635,6 +652,18 @@ impl Window {
             backend::pgxp::set_enabled(wobble_off);
         }
         scale
+    }
+
+    /// The `Fit` to show `shown` (the picture's `(w, h)`) with: the widescreen picture (the HD
+    /// surfaces' 426x240, F10) uses the 16:9 fits, anything else (the 4:3 picture, a movie, or
+    /// scale 1) what the settings say, so a 4:3 picture is never stretched.
+    fn fit_for(&self, shown: Option<(usize, usize)>) -> Fit {
+        let wide = matches!(shown, Some((w, h)) if w * 240 == h * 426);
+        match (wide, self.settings.fit) {
+            (true, Fit::Fill) => Fit::Wide,
+            (true, _) => Fit::WideInteger,
+            (false, fit) => fit,
+        }
     }
 
     /// Shows `picture` (or black) and keeps the renderer at the window's pixel size. Returns the
@@ -713,13 +742,8 @@ impl Window {
                 y,
             )
         });
-        let (pw, ph) = Self::show(
-            &mut self.renderer,
-            &self.window,
-            picture,
-            self.settings.fit,
-            note,
-        );
+        let fit = self.fit_for(shown);
+        let (pw, ph) = Self::show(&mut self.renderer, &self.window, picture, fit, note);
         self.frames += 1;
         if self.log
             && (self.frames == 1 || self.last_size != shown || self.frames.is_multiple_of(60))
@@ -797,7 +821,8 @@ impl Window {
             w: w as u32,
             h: h as u32,
         });
-        Self::show(&mut self.renderer, &self.window, picture, self.settings.fit, None);
+        let fit = self.fit_for(shown);
+        Self::show(&mut self.renderer, &self.window, picture, fit, None);
     }
 
     /// Runs the VBlanks the game isn't waiting for while it polls `PadRead`: the PS1's VBlank

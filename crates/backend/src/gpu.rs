@@ -234,6 +234,8 @@ pub struct Gpu {
     hd: Option<Box<Hd>>,
     hd_threads: usize,
     hd_full: bool,
+    /// Widescreen (an addition, HD surfaces only): the picture is 426 wide at 1x.
+    wide: bool,
 }
 
 impl Default for Gpu {
@@ -254,6 +256,7 @@ impl Gpu {
             hd: None,
             hd_threads: 0,
             hd_full: false,
+            wide: false,
         };
         g.reset(true);
         g
@@ -1210,7 +1213,11 @@ impl Gpu {
             return;
         }
         self.hd_sync();
-        self.hd = (scale > 1).then(|| Box::new(Hd::new(scale, self.hd_threads)));
+        self.hd = (scale > 1).then(|| {
+            let mut hd = Hd::new(scale, self.hd_threads);
+            hd.set_wide(self.wide);
+            Box::new(hd)
+        });
         if let Some(hd) = self.hd.as_deref_mut() {
             hd.set_full_colour(self.hd_full);
         }
@@ -1221,6 +1228,27 @@ impl Gpu {
     /// The render scale (1 = HD off).
     pub fn scale(&self) -> u32 {
         self.hd.as_ref().map_or(1, |h| h.scale())
+    }
+
+    /// Widescreen (an addition, HD surfaces only, F10): the HD picture is 426 pixels wide at 1x,
+    /// the game's 4:3 picture centred in it with the extra 53 pixels a side showing what the
+    /// game's 320-wide clip and draw area hid. Nothing on the 1x path or in the game changes, so
+    /// at render scale 1 (no HD surfaces) this does nothing.
+    pub fn set_wide(&mut self, on: bool) {
+        if on == self.wide {
+            return;
+        }
+        self.wide = on;
+        if let Some(hd) = self.hd.as_deref_mut() {
+            hd.set_wide(on);
+        }
+        self.hd_register_draw_area();
+        self.hd_register_display();
+    }
+
+    /// Whether widescreen is on (the HD picture is 426 wide when there is one).
+    pub fn wide(&self) -> bool {
+        self.wide
     }
 
     /// Nanoseconds the HD queue has taken to draw so far (0 at scale 1).

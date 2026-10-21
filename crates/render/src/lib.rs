@@ -10,8 +10,10 @@
 //!
 //! Placement (`Fit`): the game's picture is 4:3 (320x240 on a 4:3 TV), shown either at the
 //! largest whole multiple of 320x240 that fits (`Integer`, the original look; black borders) or
-//! as large as the window allows at 4:3 (`Fill`, an addition). `Exact` puts a picture the size
-//! of the window on it one to one (the splash).
+//! as large as the window allows at 4:3 (`Fill`, an addition). `Wide` and `WideInteger` do the
+//! same for the widescreen picture (the HD surfaces' 426x240, F10; an addition; 16:9 to within
+//! half a percent); a 4:3 picture shown with them would be stretched. `Exact` puts a picture the
+//! size of the window on it one to one (the splash).
 
 use wgpu::*;
 
@@ -22,6 +24,11 @@ pub enum Fit {
     Integer,
     /// As large as fits at 4:3, centred.
     Fill,
+    /// The largest whole multiple of the widescreen size (426x240) that fits, centred.
+    WideInteger,
+    /// As large as fits at the widescreen picture's shape (426:240, 16:9 to within half a
+    /// percent), centred.
+    Wide,
     /// One picture pixel per window pixel, at the top left (the picture is the window's size).
     Exact,
 }
@@ -29,21 +36,29 @@ pub enum Fit {
 /// The base picture the game draws at 1x [doc: `GsInitGraph(320, 240, ...)`, main.c:3577].
 pub const BASE: (u32, u32) = (320, 240);
 
+/// The widescreen picture: 240 lines at 16:9 is 426.67 PS1 pixels; the HD surfaces use whole
+/// pixels (53 more than the original on each side): 426x240.
+pub const WIDE: (u32, u32) = (426, 240);
+
 /// Where a `src_w x src_h` picture goes in a `win_w x win_h` window: `(x, y, w, h)` in window
 /// pixels. `Integer` and `Fill` keep 4:3 whatever the picture's size (a 640-wide picture is
-/// shown at the same size as a 320-wide one, as on a TV); when the window is smaller than the
-/// base, `Integer` shrinks to fit rather than crop.
+/// shown at the same size as a 320-wide one, as on a TV), `WideInteger` and `Wide` 16:9; when
+/// the window is smaller than the base, they shrink to fit rather than crop.
 pub fn place(fit: Fit, src_w: u32, src_h: u32, win_w: u32, win_h: u32) -> (u32, u32, u32, u32) {
     let (ww, wh) = (win_w as u64, win_h as u64);
+    let (bw, bh) = match fit {
+        Fit::Wide | Fit::WideInteger => (WIDE.0 as u64, WIDE.1 as u64),
+        _ => (BASE.0 as u64, BASE.1 as u64),
+    };
     let (w, h) = match fit {
         Fit::Exact => return (0, 0, src_w.min(win_w), src_h.min(win_h)),
-        Fit::Integer if ww >= BASE.0 as u64 && wh >= BASE.1 as u64 => {
-            let k = (ww / BASE.0 as u64).min(wh / BASE.1 as u64);
-            (BASE.0 as u64 * k, BASE.1 as u64 * k)
+        Fit::Integer | Fit::WideInteger if ww >= bw && wh >= bh => {
+            let k = (ww / bw).min(wh / bh);
+            (bw * k, bh * k)
         }
-        // 4:3, as large as fits.
-        _ if ww * 3 <= wh * 4 => (ww, ww * 3 / 4),
-        _ => (wh * 4 / 3, wh),
+        // The base's shape, as large as fits.
+        _ if ww * bh <= wh * bw => (ww, ww * bh / bw),
+        _ => (wh * bw / bh, wh),
     };
     let _ = (src_w, src_h);
     (
@@ -689,6 +704,25 @@ mod tests {
         assert_eq!(place(Fit::Fill, 320, 240, 1920, 1080), (240, 0, 1440, 1080));
         assert_eq!(place(Fit::Fill, 320, 240, 1000, 2000), (0, 625, 1000, 750));
         assert_eq!(place(Fit::Exact, 800, 600, 800, 600), (0, 0, 800, 600));
+        // Wide: the widescreen picture's 426:240 shape as large as fits (16:9 minus 0.15%, so a
+        // 1920-wide 16:9 window keeps 1917 of its width; 16:9 of 1080 is 1920).
+        assert_eq!(place(Fit::Wide, 426, 240, 1920, 1080), (1, 0, 1917, 1080));
+        assert_eq!(place(Fit::Wide, 426, 240, 1000, 2000), (0, 718, 1000, 563));
+        assert_eq!(place(Fit::Wide, 426, 240, 1000, 200), (322, 0, 355, 200));
+        // WideInteger: whole multiples of 426x240, centred.
+        assert_eq!(
+            place(Fit::WideInteger, 426, 240, 1920, 1080),
+            (108, 60, 1704, 960)
+        );
+        assert_eq!(
+            place(Fit::WideInteger, 426, 240, 900, 600),
+            (24, 60, 852, 480)
+        );
+        // Smaller than the base: shrink to fit at 16:9.
+        assert_eq!(
+            place(Fit::WideInteger, 426, 240, 200, 300),
+            (0, 94, 200, 112)
+        );
     }
 
     /// A picture with every colour channel value and sharp edges everywhere.

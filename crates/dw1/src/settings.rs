@@ -4,8 +4,8 @@
 //! `fit = integer` the picture is the PS1's, pixel for pixel.
 //!
 //! The file is `key = value` lines (`#` starts a comment); unknown keys and bad values are
-//! reported and left at their defaults. `DW1_SCALE`, `DW1_PGXP`, `DW1_FULL_COLOUR` and `DW1_FIT`
-//! override it for one run. Headless runs never read it.
+//! reported and left at their defaults. `DW1_SCALE`, `DW1_PGXP`, `DW1_FULL_COLOUR`, `DW1_FIT`
+//! and `DW1_WIDE` override it for one run. Headless runs never read it.
 
 use std::path::{Path, PathBuf};
 
@@ -26,6 +26,8 @@ pub struct Settings {
     pub no_wobble: bool,
     pub full_colour: bool,
     pub fit: Fit,
+    /// Widescreen (an addition, F10): the HD surfaces show 53 PS1 pixels more each side, 16:9.
+    pub widescreen: bool,
     pub fullscreen: bool,
 }
 
@@ -36,6 +38,7 @@ impl Default for Settings {
             no_wobble: true,
             full_colour: true,
             fit: Fit::Integer,
+            widescreen: false,
             fullscreen: false,
         }
     }
@@ -108,6 +111,7 @@ impl Settings {
             }
             "no_wobble" => self.no_wobble = bool_of(value)?,
             "full_colour" => self.full_colour = bool_of(value)?,
+            "widescreen" => self.widescreen = bool_of(value)?,
             "fullscreen" => self.fullscreen = bool_of(value)?,
             "fit" => {
                 self.fit = match value {
@@ -122,13 +126,14 @@ impl Settings {
     }
 
     /// `DW1_SCALE=<n>` (a fixed scale), `DW1_PGXP=0/1`, `DW1_FULL_COLOUR=0/1`,
-    /// `DW1_FIT=integer/fill`.
+    /// `DW1_FIT=integer/fill`, `DW1_WIDE=0/1`.
     fn apply_env(&mut self, var: impl Fn(&str) -> Option<String>) {
         for (env, key) in [
             ("DW1_SCALE", "render_scale"),
             ("DW1_PGXP", "no_wobble"),
             ("DW1_FULL_COLOUR", "full_colour"),
             ("DW1_FIT", "fit"),
+            ("DW1_WIDE", "widescreen"),
         ] {
             if let Some(v) = var(env).filter(|v| !v.is_empty())
                 && let Err(e) = self.set(key, v.trim())
@@ -149,7 +154,8 @@ impl Settings {
         };
         format!(
             "# dw1-linux picture settings. Changed in the game: F2 render scale, F3 no wobble,\n\
-             # F4 fit, F5 full colour, F11 fullscreen. Delete this file for the defaults.\n\
+             # F4 fit, F5 full colour, F10 widescreen, F11 fullscreen. Delete this file for\n\
+             # the defaults.\n\
              \n\
              # The resolution the game is drawn at: 1 is the original PS1 picture; 2 to 8 draw it\n\
              # that many times sharper (an addition); auto picks from the window's size.\n\
@@ -164,12 +170,18 @@ impl Settings {
              # above 1).\n\
              full_colour = {}\n\
              \n\
+             # Widescreen (an addition; only with render_scale above 1): the HD picture is 426\n\
+             # PS1 pixels wide instead of 320 (16:9), showing 53 pixels more each side of the\n\
+             # game's 4:3 picture. Off: the original 4:3 picture.\n\
+             widescreen = {}\n\
+             \n\
              # integer: the largest whole multiple of the PS1's picture, black around it (the\n\
-             # original look). fill: as large as the window allows at 4:3 (an addition).\n\
+             # original look). fill: as large as the window allows at 4:3 (an addition; at 16:9\n\
+             # with widescreen on).\n\
              fit = {fit}\n\
              \n\
              fullscreen = {}\n",
-            self.no_wobble, self.full_colour, self.fullscreen
+            self.no_wobble, self.full_colour, self.widescreen, self.fullscreen
         )
     }
 
@@ -203,10 +215,12 @@ impl Settings {
         };
     }
 
-    /// The render scale for a picture shown `shown_h` window pixels tall.
+    /// The render scale for a picture shown `shown_h` window pixels tall. Widescreen needs the HD
+    /// surfaces, so `auto` never picks 1 while it's on (a fixed 1 is the user's own choice and
+    /// stays; widescreen then does nothing, as the note says).
     pub fn scale_for(&self, shown_h: u32) -> u32 {
         match self.scale {
-            Scale::Auto => auto_scale(shown_h),
+            Scale::Auto => auto_scale(shown_h).max(if self.widescreen { 2 } else { 1 }),
             Scale::Fixed(s) => s,
         }
     }
@@ -223,6 +237,7 @@ mod tests {
             no_wobble: false,
             full_colour: false,
             fit: Fit::Fill,
+            widescreen: true,
             fullscreen: true,
         };
         let mut t = Settings::default();
@@ -249,11 +264,13 @@ mod tests {
         s.apply_env(|k| match k {
             "DW1_SCALE" => Some("1".into()),
             "DW1_FIT" => Some("fill".into()),
+            "DW1_WIDE" => Some("on".into()),
             _ => None,
         });
         assert_eq!(s.scale, Scale::Fixed(1));
         assert_eq!(s.fit, Fit::Fill);
         assert!(s.no_wobble);
+        assert!(s.widescreen);
     }
 
     #[test]
@@ -272,5 +289,19 @@ mod tests {
         assert_eq!(auto_scale(1441), 7);
         assert_eq!(auto_scale(100), 1);
         assert_eq!(auto_scale(5000), 8);
+        // Widescreen needs the HD surfaces: auto never picks 1 while it's on, a fixed 1 stays.
+        let wide = Settings {
+            widescreen: true,
+            ..Settings::default()
+        };
+        assert_eq!(wide.scale_for(240), 2);
+        assert_eq!(wide.scale_for(720), 3);
+        assert_eq!(wide.scale_for(5000), 8);
+        let fixed1 = Settings {
+            scale: Scale::Fixed(1),
+            widescreen: true,
+            ..Settings::default()
+        };
+        assert_eq!(fixed1.scale_for(240), 1);
     }
 }
