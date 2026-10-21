@@ -1557,14 +1557,13 @@ fn draw_tri(p: &mut Part, vram: &[u16], c: &Cmd, t: &TriCmd) {
     let dvals = dep.unwrap_or_default();
     if interp_w {
         for i in 0..3 {
-            pw[i] = 1.0
-                / if persp {
-                    v[i].pz as f64
-                } else {
-                    dvals[i] as f64
-                };
-            puw[i] = v[i].u as f64 * pw[i];
-            pvw[i] = v[i].v as f64 * pw[i];
+            pw[i] = 1.0 / if persp { v[i].pz as f64 } else { dvals[i] as f64 };
+        }
+        if persp {
+            for i in 0..3 {
+                puw[i] = v[i].u as f64 * pw[i];
+                pvw[i] = v[i].v as f64 * pw[i];
+            }
         }
     }
     let natt = if gouraud && tri1x.is_none() { 3 } else { 0 };
@@ -1627,7 +1626,11 @@ fn draw_tri(p: &mut Part, vram: &[u16], c: &Cmd, t: &TriCmd) {
             dqw = (pw[0] * s[0] + pw[1] * s[1] + pw[2] * s[2]) / a;
             dqu = (puw[0] * s[0] + puw[1] * s[1] + puw[2] * s[2]) / a;
             dqv = (pvw[0] * s[0] + pvw[1] * s[1] + pvw[2] * s[2]) / a;
-        } else if tex.is_some() && tri1x.is_none() {
+        }
+        // A textured polygon without perspective mapping (no wobble off, or corners the GTE did
+        // not project) interpolates u / v affinely: on its own, whether or not 1 / z was needed
+        // for the depth test.
+        if !persp && tex.is_some() && tri1x.is_none() {
             u24 = attr_start(num(3), area);
             v24 = attr_start(num(4), area);
             du24 = fdiv(dn[3] << 24, area);
@@ -2522,6 +2525,61 @@ mod tests {
 
     const RED: (i32, i32, i32) = (255, 0, 0);
     const GREEN: (i32, i32, i32) = (0, 255, 0);
+
+    #[test]
+    fn a_depth_tested_polygon_keeps_its_texture() {
+        // The depth test adds 1 / z to a smooth polygon, which doesn't make it perspective
+        // mapped: u / v stay affine. The bug: seeding them was tied to `interp_w` being off, so
+        // every pixel took the texel at (0, 0) and the models came out flat-coloured.
+        use crate::gpu::{State, Tex, Vtx};
+        let mut vram = vec![0u16; VRAM_W * 512];
+        for (x, p) in vram[..16].iter_mut().enumerate() {
+            *p = if x < 4 { 0x001F } else { 0x7C00 }; // red at u 0..3, blue at u 4..15
+        }
+        let mut hd = super::Hd::new(2, 1);
+        hd.set_depth(true);
+        hd.register(&vram, 0, 0, 320, 240);
+        let st = State {
+            clip_x1: 319,
+            clip_y1: 239,
+            ..State::default()
+        };
+        let tex = Tex {
+            mode: 2,
+            tx: 0,
+            ty: 0,
+            cx: 0,
+            cy: 0,
+            raw: false,
+        };
+        let v = |x: i32, y: i32, u: i32| Vtx {
+            x,
+            y,
+            u,
+            r: 128,
+            g: 128,
+            b: 128,
+            ..Vtx::default()
+        };
+        let (a, b, c) = (v(20, 20, 0), v(60, 20, 8), v(20, 60, 0));
+        hd.triangle(
+            &vram,
+            &st,
+            [&a, &b, &c],
+            false,
+            Some(&tex),
+            false,
+            0,
+            false,
+            true,
+            Some([100.0; 3]),
+        );
+        let mut out = Vec::new();
+        let (w, _) = hd.read_display(&vram, 0, 0, 320, 240, &mut out).unwrap();
+        let at = |x: usize, y: usize| out[y * 2 * w + x * 2];
+        assert_eq!(at(25, 25), 0x00FF_0000, "u near 0 is red");
+        assert_eq!(at(50, 25), 0x0000_00FF, "u near 6 is blue");
+    }
 
     #[test]
     fn a_polygon_drawn_later_but_behind_does_not_cover_the_one_in_front() {
