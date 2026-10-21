@@ -103,7 +103,13 @@ From the project root:
 ./tools/do
 ```
 
-This builds and tags the image as `dw1-builder`. You only need to do this once (or when the `Dockerfile` changes). Then do:
+This builds and tags the image as `dw1-builder`. You only need to do this once (or when the
+`Dockerfile` changes). The image already contains the downloaded Rust crate registry (the
+`Dockerfile` runs `cargo fetch` from the workspace manifests and `Cargo.lock`), so the first
+build inside it does not have to download crates. Rebuild the image after adding a dependency
+if you want it prefetched; otherwise cargo simply fetches the new crate on the next build.
+
+Then do:
 
 ```bash
 ./tools/dtb
@@ -127,10 +133,29 @@ Make the build script executable, then run it inside the Docker container:
 This compiles the C from `dw_decomp` and all the Rust code, producing the
 executable at `target/release/dw1`.
 
+Build artifacts stay in `target/` on the host, so incremental builds are fast. `./tools/do`
+runs the container as your own uid/gid, so everything it writes into `target/` belongs to you
+and not to `root`.
+
+The crate registry is baked into the image itself (the `Dockerfile` runs `cargo fetch`), so
+normal builds read it from there and download nothing: the container is disposable, but the
+image it starts from already has everything. If you add a dependency and build without
+rebuilding the image, cargo downloads it into the container's throwaway layer, so it would be
+fetched again on the next run; rebuild the image (`./tools/do`) to make it part of the image.
+For heavy dependency work you can also mount a named volume instead (see the comment in
+`tools/do`).
+
+If `target/` already contains root-owned files from older runs, give it back to yourself once:
+
+```bash
+docker run --rm -v "$PWD:/dw1" dw1-builder chown -R "$(id -u):$(id -g)" /dw1/target
+```
+
 The game C's overlay data is placed with `objcopy`/`readelf` (binutils, already
 in the image), so a native build outside Docker needs `binutils` too.
 
-The first build may take several minutes (downloading and compiling Rust dependencies).
+The first build still takes a few minutes (compiling the Rust dependencies), but they no longer
+have to be downloaded.
 
 > Equivalent shortcut: `./compile`
 
@@ -207,6 +232,9 @@ Inside the container, the project is at `/dw1`:
 cd /dw1
 ./tools/build-linux.sh
 ```
+
+The shell runs as your own user (not `root`), so files you create there belong to you, but you
+cannot install packages inside it; edit the `Dockerfile` and rebuild the image for that.
 
 ---
 

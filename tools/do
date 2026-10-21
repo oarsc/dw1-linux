@@ -9,4 +9,17 @@ if [ $# -eq 0 ]; then
     exit $?
 fi
 
-exec docker run -it --rm -v "$SCRIPT_DIR/..:/dw1" dw1-builder "$@"
+tty_flags=""
+if [ -t 0 ] && [ -t 1 ]; then
+    tty_flags="-it"
+fi
+
+uid="$(id -u)"
+gid="$(id -g)"
+
+exec docker run $tty_flags --rm \
+    --user "$uid:$gid" \
+    -e HOME=/home/dw1 \
+    -e CARGO_HOME=/opt/cargo \
+    -v "$SCRIPT_DIR/..:/dw1" \
+    dw1-builder "$@"

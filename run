@@ -2,4 +2,5 @@
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
-"$SCRIPT_DIR/tools/dtb" env DW1_DISC="/dw1/external/Digimon World (USA).cue" /dw1/target/release/dw1
+#"$SCRIPT_DIR/tools/dtb" env DW1_DISC="/dw1/disc/Digimon World (USA).cue" /dw1/target/release/dw1
+DW1_DISC="$SCRIPT_DIR/disc/Digimon World (USA).cue" $SCRIPT_DIR/target/release/dw1

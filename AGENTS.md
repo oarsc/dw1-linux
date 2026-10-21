@@ -140,6 +140,28 @@ To avoid polluting the host machine, dependencies are installed in Docker. There
 | `Dockerfile` (root) | `archlinux:latest` | Main dw1-linux build (Rust, C, SDL3, Vulkan, etc.) |
 | `decomp/Dockerfile` | `ubuntu:noble` | `dw_decomp` build (MIPS toolchain, splat, etc.) |
 
+`tools/do` (docker) runs with `--rm`, so anything cargo writes at run time is thrown away.
+That is fine because the crates do not live in the container:
+
+- The `Dockerfile` prefetches the registry into the image with `cargo fetch --locked`, from
+  `Cargo.lock` and the workspace manifests (stub `src/`/`build.rs` files are generated only
+  for the fetch). This layer is reused until the manifests or `Cargo.lock` change, so normal
+  builds download nothing.
+- Cargo still writes a few small files into `CARGO_HOME` (`/opt/cargo`: package-cache lock,
+  global cache). Those go to the disposable layer and are recreated as needed. Both
+  `/opt/cargo` and `/home/dw1` (the container `HOME`) are world-writable in the image, because
+  `tools/do` runs commands with `--user "$(id -u):$(id -g)"`.
+- A dependency added locally without rebuilding the image is downloaded into that disposable
+  layer, i.e. once per run. Rebuild the image to bake it in, or mount a volume at
+  `/opt/cargo` (commented in `tools/do`) if iterating on `Cargo.toml` a lot.
+
+Running as the invoking user keeps `target/` (a bind mount) owned by that user instead of
+`root`. Old root-owned build trees can be fixed once with
+`docker run --rm -v "$PWD:/dw1" dw1-builder chown -R "$(id -u):$(id -g)" /dw1/target`.
+
+`tools/dtb` (distrobox) does not need the volume: the container shares the host `$HOME`, so
+it uses the host's `~/.cargo`.
+
 ---
 
 ## Key Files to Modify for Linux
