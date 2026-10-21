@@ -2078,6 +2078,37 @@ mod tests {
         assert_eq!(hd[(110 * S) * hw + (-5 + m) as usize * S], fill_c);
     }
 
+    /// F10 at runtime: switching widescreen on and off drops the HD surfaces and registers them
+    /// from the VRAM again, so the picture read out changes size (426x240 at 1x, then 320x240)
+    /// while the 1x picture and its pixels stay where they were.
+    #[test]
+    fn widescreen_can_be_toggled_at_runtime() {
+        let mut g = Gpu::new();
+        g.set_scale(S as u32);
+        g.gp0(&[
+            0xE300_0000,
+            0xE400_0000 | (239 << 10) | 319,
+            0xE500_0000,
+            0xE100_0000,
+        ]);
+        g.set_display(0, 0, 320, 240, false);
+        g.set_display_enable(true);
+        g.fill(0, 0, 320, 240, 0x12_34_56);
+        let m = super::WIDE_MARGIN as usize * S;
+        let (narrow, wide) = (320 * S, (320 + 2 * super::WIDE_MARGIN as usize) * S);
+        let mut hd = Vec::new();
+        assert_eq!(g.read_display_hd(&mut hd), Some((narrow, 240 * S)));
+        let at_1x = hd[(100 * S) * narrow + 50 * S];
+        g.set_wide(true);
+        assert_eq!(g.read_display_hd(&mut hd), Some((wide, 240 * S)));
+        assert_eq!(hd[(100 * S) * wide + 50 * S + m], at_1x);
+        g.set_wide(false);
+        assert_eq!(g.read_display_hd(&mut hd), Some((narrow, 240 * S)));
+        assert_eq!(hd[(100 * S) * narrow + 50 * S], at_1x);
+        let mut one = vec![0u32; 320 * 240];
+        assert_eq!(g.read_display(&mut one), Some((320, 240)));
+    }
+
     #[test]
     fn scale_1_is_the_1x_picture_and_24_bit_is_replicated() {
         let mut g = Gpu::new();

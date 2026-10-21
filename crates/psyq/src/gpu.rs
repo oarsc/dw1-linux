@@ -11,7 +11,8 @@ use crate::memory::{LINK_END, ptr_of_link};
 /// default, is off: nothing but the 1x picture); `DW1_HD_THREADS=<n>` sets the drawing threads
 /// (default one per core, at most 8); `DW1_PGXP=1` draws 3D polygons on the HD surfaces at
 /// their precise projected positions ("no wobble"; nothing changes at scale 1); `DW1_FULL_COLOUR=1`
-/// shades the HD surfaces on 8 bits a channel without the dither.
+/// shades the HD surfaces on 8 bits a channel without the dither; `DW1_WIDE=1` gives them
+/// widescreen margins (nothing changes at scale 1).
 static GPU: LazyLock<Mutex<Gpu>> = LazyLock::new(|| {
     let mut gpu = Gpu::new();
     let env = |name: &str| {
@@ -25,6 +26,7 @@ static GPU: LazyLock<Mutex<Gpu>> = LazyLock::new(|| {
     if let Some(s) = env("DW1_SCALE") {
         gpu.set_scale(s);
     }
+    gpu.set_wide(env("DW1_WIDE") == Some(1));
     backend::pgxp::set_enabled(gpu.scale() > 1 && env("DW1_PGXP") == Some(1));
     gpu.set_full_colour(env("DW1_FULL_COLOUR") == Some(1));
     Mutex::new(gpu)

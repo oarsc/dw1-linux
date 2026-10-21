@@ -66,3 +66,10 @@ The first step above is in: an HD-margin widescreen, labelled an addition and of
 - Known to be unhandled, per the survey above: the 5th tile column, pre-culled actors at the
   edges, full-screen effects and the per-scene allowlist/pillarbox. Expect black or missing art
   at map edges; the arenas and the middles of the wider maps are the useful parts for now.
+
+Checked with the `new-game` replay (headless, render scale 2, `DW1_WIDE=1` against `0`): the 75
+1x screenshots and the 19 canonical-state checkpoints are byte-identical, each 852x480 HD
+picture's centre 640x480 is identical to the 4:3 HD picture, and movie frames (which take the
+1x fallback) stay 640x480. So the game and the 1x VRAM don't notice it, and the margins only
+add pixels at the sides. In the window, `DW1_WINDOW_LOG=1` shows the display switching between
+640x480 (4:3 scenes) and 852x480 (the margins) by itself.
