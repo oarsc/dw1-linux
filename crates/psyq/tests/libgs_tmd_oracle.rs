@@ -37,6 +37,8 @@
 
 use std::path::PathBuf;
 
+// Only the tests with a capture (cfg-gated) call this; without any it is unused.
+#[allow(dead_code)]
 fn dir(name: &str) -> PathBuf {
     match std::env::var_os("DW1_LIBGS_TMD_CAPTURES") {
         Some(d) => PathBuf::from(d).join(name),

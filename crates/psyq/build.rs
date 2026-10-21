@@ -6,6 +6,7 @@
 use std::path::{Path, PathBuf};
 
 include!("../../tools/build-support/watch.rs");
+include!("../../tools/build-support/disc.rs");
 
 fn main() {
     disc();
@@ -21,8 +22,10 @@ fn main() {
         "have_libgpu_drawload_capture",
         "DW1_LIBGPU_DRAWLOAD_CAPTURE",
         "p9-render-drawload",
+        "tests/libgpu_drawload_oracle.rs",
     );
     println!("cargo::rerun-if-changed=build.rs");
+    report_skipped();
 }
 
 /// Sets `cfg(have_libgs_2d_capture)` when at least one `g2d-box-*` or `g2d-spr` capture run of
@@ -45,9 +48,9 @@ fn sort2d_capture() {
     if found {
         println!("cargo::rustc-cfg=have_libgs_2d_capture");
     } else {
-        println!(
-            "cargo::warning=2D sort captures not found under {}: tests/libgs_2d_capture.rs will be ignored",
-            root.display()
+        skipped(
+            "tests/libgs_2d_capture.rs",
+            format!("2D sort captures not found under {}", root.display()),
         );
     }
 }
@@ -82,9 +85,9 @@ fn sort_capture() {
     if found > 0 {
         println!("cargo::rustc-cfg=have_libgs_capture");
     } else {
-        println!(
-            "cargo::warning=GsSortObject4J captures not found under {}: tests/libgs_capture.rs will be ignored",
-            root.display()
+        skipped(
+            "tests/libgs_capture.rs",
+            format!("GsSortObject4J captures not found under {}", root.display()),
         );
     }
 }
@@ -94,26 +97,27 @@ fn disc() {
     println!("cargo::rustc-check-cfg=cfg(have_disc_image)");
     println!("cargo::rerun-if-env-changed=DW1_DISC");
     println!("cargo::rerun-if-env-changed=DW1_DISC_FILES");
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let cue = std::env::var_os("DW1_DISC")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("disc/Digimon World (USA).cue"));
-    let files = std::env::var_os("DW1_DISC_FILES")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("decomp/disks/us"));
+    let root = workspace_root();
+    let cue = disc_image(&root);
+    let extracted = disc_files(&root);
     watch(&cue);
-    watch(&files);
+    watch(&extracted);
     // The image alone (tests/libgs_disc_models.rs reads its files through `pack`).
     if cue.exists() {
         println!("cargo::rustc-cfg=have_disc_image");
         println!("cargo::rustc-env=DW1_TEST_DISC_IMAGE={}", cue.display());
     }
-    if cue.exists() && files.is_dir() {
+    if cue.exists() && extracted.is_dir() {
         println!("cargo::rustc-cfg=have_disc");
         println!("cargo::rustc-env=DW1_TEST_DISC={}", cue.display());
-        println!("cargo::rustc-env=DW1_TEST_FILES={}", files.display());
+        println!("cargo::rustc-env=DW1_TEST_FILES={}", extracted.display());
+    } else if !cue.exists() {
+        skipped(
+            "tests/libcd_disc.rs",
+            format!("disc image not found ({})", cue.display()),
+        );
     } else {
-        println!("cargo::warning=disc not found: tests/libcd_disc.rs will be ignored");
+        skipped("tests/libcd_disc.rs", extract_hint(&extracted, &cue));
     }
 }
 
@@ -131,9 +135,9 @@ fn gte_capture() {
     if dir.join("req.txt").exists() && dir.join("results.txt").exists() {
         println!("cargo::rustc-cfg=have_gte_capture");
     } else {
-        println!(
-            "cargo::warning=libgte oracle run not found ({}): tests/libgte_oracle.rs will be ignored",
-            dir.display()
+        skipped(
+            "tests/libgte_oracle.rs",
+            format!("libgte oracle run not found ({})", dir.display()),
         );
     }
 }
@@ -155,9 +159,9 @@ fn libgs_light_capture() {
     if dir.join("req.txt").exists() && dir.join("results.txt").exists() {
         println!("cargo::rustc-cfg=have_libgs_light_capture");
     } else {
-        println!(
-            "cargo::warning=libgs light oracle run not found ({}): tests/libgs_oracle.rs will be ignored",
-            dir.display()
+        skipped(
+            "tests/libgs_oracle.rs",
+            format!("libgs light oracle run not found ({})", dir.display()),
         );
     }
 }
@@ -176,9 +180,12 @@ fn libgpu_capture() {
     if root.join("g2d-tim/calls.txt").exists() && root.join("g2d-clut/calls.txt").exists() {
         println!("cargo::rustc-cfg=have_libgpu_capture");
     } else {
-        println!(
-            "cargo::warning=OpenTIM/LoadClut captures not found under {}: tests/libgpu_capture.rs will be ignored",
-            root.display()
+        skipped(
+            "tests/libgpu_capture.rs",
+            format!(
+                "OpenTIM/LoadClut captures not found under {}",
+                root.display()
+            ),
         );
     }
 }
@@ -193,11 +200,13 @@ fn sprite_capture() {
         "have_libgs_sprite_capture",
         "DW1_LIBGS_SPRITE_CAPTURE",
         "libgs-sprite",
+        "tests/libgs_sprite_oracle.rs",
     );
     request_run(
         "have_libgs_sprite_btl_capture",
         "DW1_LIBGS_SPRITE_BTL_CAPTURE",
         "libgs-sprite-btl",
+        "tests/libgs_sprite_oracle.rs",
     );
 }
 
@@ -219,17 +228,18 @@ fn tmd_capture() {
         if dir.join("req.txt").exists() && dir.join("results.txt").exists() {
             println!("cargo::rustc-cfg={cfg}");
         } else {
-            println!(
-                "cargo::warning=libgs TMD oracle run not found ({}): its test in tests/libgs_tmd_oracle.rs will be ignored",
-                dir.display()
+            skipped(
+                "tests/libgs_tmd_oracle.rs",
+                format!("libgs TMD oracle run not found ({})", dir.display()),
             );
         }
     }
 }
 
 /// Sets `cfg(<cfg>)` when an `oracle/call-sdk.lua` run's `req.txt` and `results.txt` exist in
-/// `$<env>`, default `<workspace>/captures/oracle-runs/<default>`.
-fn request_run(cfg: &str, env: &str, default: &str) {
+/// `$<env>`, default `<workspace>/captures/oracle-runs/<default>`; `test` is the file using the
+/// cfg, for the notice when the run is missing.
+fn request_run(cfg: &str, env: &str, default: &str, test: &'static str) {
     println!("cargo::rustc-check-cfg=cfg({cfg})");
     println!("cargo::rerun-if-env-changed={env}");
     let dir = match std::env::var_os(env) {
@@ -242,9 +252,9 @@ fn request_run(cfg: &str, env: &str, default: &str) {
     if dir.join("req.txt").exists() && dir.join("results.txt").exists() {
         println!("cargo::rustc-cfg={cfg}");
     } else {
-        println!(
-            "cargo::warning=oracle run not found ({}): tests needing cfg({cfg}) will be ignored",
-            dir.display()
+        skipped(
+            test,
+            format!("oracle run not found ({}) for cfg({cfg})", dir.display()),
         );
     }
 }
@@ -265,9 +275,9 @@ fn sortot_capture() {
     {
         println!("cargo::rustc-cfg=have_libgs_sortot_capture");
     } else {
-        println!(
-            "cargo::warning=GsSortOt captures not found under {}: tests/libgs_sortot.rs will be ignored",
-            root.display()
+        skipped(
+            "tests/libgs_sortot.rs",
+            format!("GsSortOt captures not found under {}", root.display()),
         );
     }
 }

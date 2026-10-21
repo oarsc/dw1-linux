@@ -19,9 +19,10 @@ fn main() {
     if dir.join("cases.txt").exists() && dir.join("results.txt").exists() {
         println!("cargo::rustc-cfg=have_gpu_capture");
     } else {
-        println!(
-            "cargo::warning=GPU oracle run not found ({}): tests/gpu_oracle.rs will be ignored",
-            dir.display()
+        skipped(
+            "tests/gpu_oracle.rs",
+            format!("GPU oracle run not found ({})", dir.display()),
         );
     }
+    report_skipped();
 }

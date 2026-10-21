@@ -30,7 +30,7 @@ PCSX-Redux oracle on Linux, and testing `tools/make-linux.sh --install`.
 | 1 | Create `tools/build-linux.sh` | ✅ | Done |
 | 1 | macOS `make-app.sh` / `Info.plist.in` / `make-icon.py` | ✅ Deleted (macOS-only) |
 | 1 | `README.md` with Linux instructions (build-linux.sh via `./compile`) | ✅ | Done |
-| 1 | Document `external/` folder for game disc | ✅ | Done |
+| 1 | Document `disc/` folder for game disc | ✅ | Done |
 | 2 | `check_host_symbols()` removed | ✅ | Deleted from `build.rs` |
 | 2 | `xcrun` removed on Linux | ✅ | Removed |
 | 2 | `decomp-c` compiles on Linux | ✅ | Builds with clang/gcc on Linux x86_64 |
@@ -72,7 +72,7 @@ PCSX-Redux oracle on Linux, and testing `tools/make-linux.sh --install`.
 3. Continue modding: edit `decomp/src/` (or `decomp/text/`), rebuild and test:
    ```bash
    ./compile                     # builds the release binary in the container
-   ./run                         # runs it with DW1_DISC pointing at external/
+   ./run                         # runs it (the disc in disc/ is found on its own)
    ```
 4. Read `docs/s06-platform.md` and `docs/s08-oracle.md` for context on the oracle.
 

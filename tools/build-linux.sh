@@ -18,4 +18,4 @@ cargo build --release -p dw1
 bin=target/release/dw1
 
 echo "build-linux: built $bin"
-echo "build-linux: run with DW1_DISC=/path/to/Digimon\ World\ \(USA\).cue $bin"
+echo "build-linux: run it (the disc in disc/ is found on its own): $bin"

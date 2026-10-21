@@ -14,9 +14,8 @@ fn main() {
     let src = root.join("backend/psxgpu.c");
     watch(&src);
     if !src.exists() {
-        println!(
-            "cargo::warning=ref/DW2-PC/backend/psxgpu.c not found: GPU differential tests will skip"
-        );
+        skipped("tests/diff.rs", format!("{} not found", src.display()));
+        report_skipped();
         return;
     }
     cc::Build::new()

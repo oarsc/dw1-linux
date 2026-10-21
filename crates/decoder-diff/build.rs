@@ -33,9 +33,14 @@ fn main() {
         }
     }
     if !all {
-        println!(
-            "cargo::warning=ref/DW2-PC/backend/{{xadec,mdec,psxspu}}.c not found: decoder differential tests will skip"
+        skipped(
+            "tests/{mdec,spu,xa}.rs",
+            format!(
+                "ref/DW2-PC/backend/{{xadec,mdec,psxspu}}.c not found under {}",
+                root.display()
+            ),
         );
+        report_skipped();
         return;
     }
     // psxspu.c includes psxspu_gauss.inc and every file includes "backend/*.h".

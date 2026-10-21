@@ -41,5 +41,3 @@ scratchpad/
 .claude/worktrees/
 __pycache__/
 /target-*/
-
-./external/

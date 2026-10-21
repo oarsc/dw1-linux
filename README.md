@@ -89,11 +89,11 @@ This downloads the `dw_decomp` code (the game decompilation) and its Psy-Q heade
 Place your own legal copy of *Digimon World* (USA) as a `.cue`/`.bin` pair in:
 
 ```
-external/Digimon World (USA).cue
-external/Digimon World (USA).bin
+disc/Digimon World (USA).cue
+disc/Digimon World (USA).bin
 ```
 
-The `external/` directory is gitignored — game data is never committed.
+The `disc/` directory is gitignored — game data is never committed.
 
 ### 4. Build the Docker image
 
@@ -134,11 +134,11 @@ The first build may take several minutes (downloading and compiling Rust depende
 ### 6. Run the game
 
 You need your own legal copy of *Digimon World* (USA, SLUS-01032) as a `.cue`/`.bin` pair.
-Place them in `external/` (gitignored — game data is never committed):
+Place them in `disc/` (gitignored — game data is never committed):
 
 ```
-external/Digimon World (USA).cue
-external/Digimon World (USA).bin
+disc/Digimon World (USA).cue
+disc/Digimon World (USA).bin
 ```
 
 Then run:
@@ -146,10 +146,18 @@ Then run:
 ```bash
 # Using distrobox
 ./run
-./tools/dtb env DW1_DISC="/dw1/external/Digimon World (USA).cue" /dw1/target/release/dw1
+./tools/dtb /dw1/target/release/dw1
 
 # Using host directly
-DW1_DISC="./external/Digimon World (USA).cue" ./target/release/dw1
+./target/release/dw1
+```
+
+The image in `disc/` is found automatically; set `DW1_DISC` only to use one somewhere else. The
+disc comparison tests also need the files `dumpsxiso` extracts, in `decomp/disks/us`:
+
+```bash
+dumpsxiso -x decomp/disks/us -s decomp/disks/us/us.xml \
+    "disc/Digimon World (USA).bin"
 ```
 
 > **Dependencies on the host machine:** The release binary is *dynamically linked*. It needs
@@ -206,7 +214,7 @@ dw1-linux/
 ├── Dockerfile          # Arch Linux image with build dependencies
 ├── decomp/             # Submodule: dw_decomp (game C source)
 ├── decomp/Dockerfile   # Ubuntu image with MIPS toolchain for dw_decomp
-├── external/           # Gitignored: your legal .cue/.bin game disc
+├── disc/               # Gitignored: your legal .cue/.bin game disc
 ├── tools/
 │   ├── build-linux.sh  # Linux build script (run via ./do)
 │   ├── make-linux.sh   # Linux packaging script (build + --install)
@@ -226,7 +234,7 @@ dw1-linux/
 ## Important notes
 
 - **Personal use only.** Do not distribute executables, assets, or derived code.
-- **Never commit game data** (`.bin`, `.cue`, BIOS, saves, captures). They are in `.gitignore` under `external/`, `disc/`, `dumps/`, `build/`, `captures/`, `ref/`.
+- **Never commit game data** (`.bin`, `.cue`, BIOS, saves, captures). They are in `.gitignore` under `disc/`, `dumps/`, `build/`, `captures/`, `ref/`.
 - The game uses **Vulkan** by default on Linux. If you don't have Vulkan drivers,
   switch to OpenGL in `crates/render/Cargo.toml`.
 - To edit the game logic, modify the C files in `decomp/src/` and recompile with

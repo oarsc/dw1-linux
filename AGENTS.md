@@ -262,7 +262,10 @@ To avoid polluting the host machine, dependencies are installed in Docker. There
 
 - **`README.md`** — Project summary and step-by-step to compile/run on Linux (in English).
 - **`tools/build-linux.sh`** — Linux build script (run inside Docker via `./compile` / `./do`).
-- **`external/`** — Gitignored folder for your legal `.cue`/`.bin` game disc.
+- **`disc/`** — Gitignored folder for your legal `.cue`/`.bin` game disc. The build scripts and the
+  game find `disc/Digimon World (USA).cue` on their own (`DW1_DISC` overrides), and the disc
+  comparison tests additionally need `dumpsxiso`'s files in `decomp/disks/us`
+  (`DW1_DISC_FILES` overrides).
 - **`docs/`** — Original port plan and phase documents (`phase*-plan.md`, `s0*-*.md`).
 - **`LINUX_PORT_STATUS.md`** — Phase progress checklist.
 - **`LINUX_PORT_DECISIONS.md`** — Design decisions made.

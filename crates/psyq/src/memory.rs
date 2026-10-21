@@ -83,7 +83,7 @@ unsafe extern "C" {
     static DATA_END_FALLBACK: u8;
 }
 
-/// `dl_iterate_phdr` from `<link.h>`, iterates over the program's loaded segments.
+// `dl_iterate_phdr` from `<link.h>`, iterates over the program's loaded segments.
 unsafe extern "C" {
     fn dl_iterate_phdr(
         callback: extern "C" fn(*mut DlPhdrInfo, usize, *mut c_void) -> c_int,
