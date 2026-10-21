@@ -16,15 +16,20 @@ whole before starting, and don't re-ask Ember anything answered here. Keep the
   (`backend::pgxp`). All ten replays are identical with `DW1_SCALE=4 DW1_PGXP=1`, and at scale 4
   every HD frame's first pixel per block equals the 1x picture (0 differences over 267 new-game
   shots). `settings.txt` in Application Support holds the options (F2 render scale with auto
-  from the window size, F3 no wobble, F4 fit, F11 fullscreen) with a note in the corner; the
-  defaults are auto, no wobble on, whole-multiple fit. Widescreen: a report only
-  (`docs/phase8-widescreen.md`: selective, not now).
+  from the window size, F3 no wobble, F4 fit, F5 full colour, F6 depth test, F11 fullscreen)
+  with a note in the corner; the defaults are auto, no wobble on, whole-multiple fit. Widescreen:
+  a report only (`docs/phase8-widescreen.md`: selective, not now).
 - **Full colour is built (session 6, 2026-10-14):** F5 / `full_colour` / `DW1_FULL_COLOUR=1`,
   on by default (Ember). HD shading and see-through effects on 8 bits a channel with no dither; off is
   byte-identical to before, replays identical with it on, Astra's review converged
   (`docs/phase8-plan.md` Progress). Side-by-sides in `captures/phase8-full-colour/`.
 - **No wobble no longer cracks models** (Ember saw lines through Koromon's head): fixed the same
   session (`docs/phase8-plan.md` Progress); Ember checked it in play.
+- **Depth test (Linux port, 2026-10-21):** `depth` / F6 / `DW1_DEPTH`, on by default. The HD
+  surfaces test depth per pixel from the GTE records `pgxp` already keeps, so a polygon behind
+  another no longer shows through, which the PS1's sort of whole polygons by average depth allows
+  (`docs/phase8-plan.md` 8.7). 1x untouched; works with no wobble on or off; an addition, needs a
+  render scale above 1.
 - **Phase 9 is under way** (`docs/phase9-plan.md`, its Progress has the details): 9.1 the window
   build finds the disc (remembered in `disc.txt`, or a first-run screen with the macOS file
   dialog; `DW1_ASK_DISC=1` to see it), 9.2 `tools/make-app.sh [--install]` builds

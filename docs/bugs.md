@@ -38,3 +38,28 @@ For each bug:
   `tickEntityMoveToAxis` and the healing particles use it; the healing particles had a
   hand-written version of the same thing.
 - **Status:** fixed
+
+### The HD depth test made the 3D models flat-coloured (2026-10-21)
+
+- **What happened:** with the depth test on (F6) and no wobble off, models were drawn with one
+  texel of their texture instead of the texture itself (coloured silhouettes). A bug of the depth
+  test below: the polygon now needed `1 / z`, and seeding the affine `u / v` interpolation was
+  tied to `1 / z` *not* being needed, so every pixel sampled the texel at (0, 0).
+- **Where:** in play, any scene with models.
+- **Snapshot:** `reports/20261021-102956` (scale 5, wobble on, depth test on).
+- **Status:** fixed on `feature/hd-depth-test`: the two are independent; a test draws a
+  depth-tested smooth textured triangle and checks the texel at each end.
+
+### A part of a model was drawn over the one in front of it (2026-10-21)
+
+- **What happened:** above 1x render scale, part of a model showed through the part that lies in
+  front of it. The PS1 draws it the same way: it has no depth buffer and sorts whole polygons by
+  their average depth (`GsSortObject4J`), so a polygon behind another can be drawn after it. Not
+  a port bug; the HD surfaces can do better.
+- **Where:** in play, with the models in view.
+- **Snapshot:** `reports/20261021-100145` (scale 3, wobble on).
+- **Status:** fixed on `feature/hd-depth-test`: the HD surfaces test `1 / z` per pixel from the
+  GTE's own view depths, behind a new `depth` setting (F6, `DW1_DEPTH`, on by default;
+  `docs/phase8-plan.md` 8.7). The 1x picture, the saves and the replays are untouched. Polygons
+  drawn as the 1x picture (2D and sprites) keep the PS1's order, a polygon without every corner
+  projected this frame is drawn as before, and a hole painted into a texture is not separated.

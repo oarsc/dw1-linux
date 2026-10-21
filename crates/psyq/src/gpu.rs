@@ -11,7 +11,8 @@ use crate::memory::{LINK_END, ptr_of_link};
 /// default, is off: nothing but the 1x picture); `DW1_HD_THREADS=<n>` sets the drawing threads
 /// (default one per core, at most 8); `DW1_PGXP=1` draws 3D polygons on the HD surfaces at
 /// their precise projected positions ("no wobble"; nothing changes at scale 1); `DW1_FULL_COLOUR=1`
-/// shades the HD surfaces on 8 bits a channel without the dither.
+/// shades the HD surfaces on 8 bits a channel without the dither; `DW1_DEPTH=1` draws them with
+/// the depth test (nothing changes at scale 1).
 static GPU: LazyLock<Mutex<Gpu>> = LazyLock::new(|| {
     let mut gpu = Gpu::new();
     let env = |name: &str| {
@@ -25,7 +26,10 @@ static GPU: LazyLock<Mutex<Gpu>> = LazyLock::new(|| {
     if let Some(s) = env("DW1_SCALE") {
         gpu.set_scale(s);
     }
-    backend::pgxp::set_enabled(gpu.scale() > 1 && env("DW1_PGXP") == Some(1));
+    let (wobble, depth) = (env("DW1_PGXP") == Some(1), env("DW1_DEPTH") == Some(1));
+    backend::pgxp::set_enabled(gpu.scale() > 1 && wobble);
+    backend::pgxp::set_depth_record(gpu.scale() > 1 && depth);
+    gpu.set_depth(depth);
     gpu.set_full_colour(env("DW1_FULL_COLOUR") == Some(1));
     Mutex::new(gpu)
 });
@@ -97,7 +101,8 @@ pub unsafe fn draw_chain(head: *const u32) {
                 whole &= gpu.gp0(&words);
             }
             if tag & LINK_END == LINK_END {
-                // The frame is drawn: its projections are done with.
+                // The frame is drawn: its projections and the HD surfaces' depths are done with.
+                gpu.end_frame();
                 backend::pgxp::end_frame();
                 return;
             }
@@ -108,6 +113,7 @@ pub unsafe fn draw_chain(head: *const u32) {
                 // send it again and again and never reach the rest of the list; sending a state
                 // command again changes nothing, so the frame is what is drawn up to here.
                 note_self_link(p);
+                gpu.end_frame();
                 backend::pgxp::end_frame();
                 return;
             }

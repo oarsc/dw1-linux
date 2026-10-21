@@ -1,4 +1,5 @@
-//! Precise vertices for the HD surfaces' "no wobble" option (Phase 8.3).
+//! Precise vertices for the HD surfaces' "no wobble" option (Phase 8.3) and their depth test
+//! ("hide hidden polygons", Phase 8.7).
 //!
 //! Translated from DW2-PC (github.com/Wyrelade/DW2-PC, CC0), `backend/pgxp.c` at commit 2d491b5,
 //! DW2-PC's own work; its smooth-frames parts (vertex sources, instances, the camera) are left
@@ -17,6 +18,11 @@
 //!
 //! Nothing here changes what the game sees: the GTE's registers are written before the report,
 //! and only the HD surfaces read the table.
+//!
+//! Two options read it, and each takes its own part: "no wobble" the positions, the HD depth test
+//! the view depths (the PS1 sorts whole polygons by their average depth, so a polygon behind
+//! another can be drawn after it; per pixel, this is what tells them apart). Recording is on when
+//! either option is, so the depth test does not need "no wobble" on.
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -54,6 +60,8 @@ struct Table {
 }
 
 static ON: AtomicBool = AtomicBool::new(false);
+/// The HD depth test records too (it reads the depths, not the positions).
+static DEPTH: AtomicBool = AtomicBool::new(false);
 /// Inside `without` or between `set_paused(true)` and `set_paused(false)`: projections are not
 /// recorded.
 static PAUSED: AtomicBool = AtomicBool::new(false);
@@ -67,12 +75,30 @@ fn table<R>(f: impl FnOnce(&mut Table) -> R) -> R {
     }))
 }
 
-/// Turns recording on or off (off also forgets everything recorded).
+/// Turns no wobble on or off (off also forgets everything recorded when nothing else needs it).
 pub fn set_enabled(on: bool) {
     ON.store(on, Ordering::Relaxed);
-    if !on {
+    if !recording() {
         end_frame();
     }
+}
+
+/// Has the depth test record projections too (they're recorded for no wobble as well).
+pub fn set_depth_record(on: bool) {
+    DEPTH.store(on, Ordering::Relaxed);
+    if !recording() {
+        end_frame();
+    }
+}
+
+/// Whether projections are being recorded at all (either option needs it).
+pub fn recording() -> bool {
+    ON.load(Ordering::Relaxed) || DEPTH.load(Ordering::Relaxed)
+}
+
+/// Whether the depth test asked for recordings (`set_depth_record`).
+pub fn depth_record() -> bool {
+    DEPTH.load(Ordering::Relaxed)
 }
 
 /// Runs `f` with recording paused: for code that places a 2D picture through the GTE (libgs's
@@ -212,7 +238,7 @@ pub struct Precise {
 pub fn lookup_poly(xy: &[(i32, i32)]) -> [Option<Precise>; 4] {
     let n = xy.len();
     assert!(n == 3 || n == 4);
-    if !enabled() {
+    if !recording() {
         return [None; 4];
     }
     table(|t| {
@@ -297,6 +323,7 @@ pub(crate) fn serial() -> impl Drop {
     impl Drop for Off {
         fn drop(&mut self) {
             set_enabled(false);
+            set_depth_record(false);
         }
     }
     static GATE: Mutex<()> = Mutex::new(());
@@ -330,6 +357,21 @@ mod tests {
         assert!(p[0].is_some() && p[1].is_some() && p[2].is_none());
         // Gone after the frame.
         end_frame();
+        assert_eq!(lookup_poly(&[(10, 20), (30, 20), (10, 40)]), [None; 4]);
+    }
+
+    #[test]
+    fn the_depth_test_records_without_no_wobble() {
+        let _g = serial();
+        set_depth_record(true);
+        end_frame();
+        assert!(recording() && depth_record() && !enabled());
+        record(10, 20, 10.25, 20.75, 100.0, 0);
+        let p = lookup_poly(&[(10, 20), (30, 20), (10, 40)]);
+        assert_eq!(p[0].map(|p| p.z), Some(100.0));
+        // Leaving the option forgets what it recorded.
+        set_depth_record(false);
+        assert!(!recording());
         assert_eq!(lookup_poly(&[(10, 20), (30, 20), (10, 40)]), [None; 4]);
     }
 

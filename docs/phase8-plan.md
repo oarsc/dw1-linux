@@ -137,6 +137,29 @@ cut, which culling feeds game logic (and so can't be widened without changing th
 the authored-320 effects do. Output: `docs/phase8-widescreen.md` with pictures for Ember and a
 recommendation (likely: 16:9 where the art exists, pillarbox elsewhere, or not at all).
 
+### 8.7 HD depth test (after a bug seen in play)
+
+The PS1 has no depth buffer: `GsSortObject4J` sorts whole polygons by their average depth
+(`AVSZ3`/`AVSZ4` into the ordering table), so a polygon behind another can be drawn after it and
+show through it (a report from play; the PS1 draws it that way too, `docs/bugs.md`). The HD
+surfaces can do better because `backend::pgxp` already records each projected corner's view depth
+for "no wobble": interpolate `1 / z` across the surface pixels and draw a polygon at a pixel only
+where it is not behind what is already there.
+
+- `depth` in `settings.txt`, **F6**, `DW1_DEPTH=1`; on by default (an addition, needs a render
+  scale above 1). Separate from "no wobble": recording is on when either option is, and each
+  reads its own part (positions, depths), so the test works with wobble on or off.
+- The 1x VRAM is untouched, so the game, the save files and the replays are the same; at scale 1
+  nothing changes.
+- At the same depth the polygon drawn later still shows (decals keep the PS1's order); a
+  see-through polygon is tested but doesn't write depth; a 2D fill (an opaque rectangle such as
+  the frame's clear) forgets the depths under it, and so does the end of the frame's ordering
+  table (the map's background is 2D, so its frame needn't clear).
+- Polygons drawn as the 1x picture (`tri1x`: 2D and sprite-like, map tiles) keep the PS1's order.
+  A polygon with any corner the GTE did not project this frame has no depth and is drawn as
+  before. A hole in a *texture* (several layers painted into one polygon) is not separated:
+  only polygons are.
+
 ## Done when
 
 1x with the extras off matches the emulator's picture (the presenter adds nothing); every replay
@@ -207,3 +230,17 @@ Ember has looked at them; the widescreen report is written. Then Phase 9.
   Replays identical with every extra on; Astra reviewed three times (two real findings, both the
   2D cases above), converged. Before/after in `captures/phase8-cracks/`. Ember: "Looks good".
 - **Phase 8 closed (2026-10-14).**
+- **8.7 depth test (after closing; a bug from play, 2026-10-21):** a part of a model was drawn over
+  the part in front of it, because the PS1 sorts whole polygons by average depth (no z-buffer).
+  `depth` in `settings.txt`, F6, `DW1_DEPTH=1`, on by default: the HD surfaces test `1 / z` per
+  pixel, the depths coming from the GTE records that "no wobble" already made (recording gates both
+  options; positions and depths are read separately, so it works with wobble on). 1x VRAM untouched;
+  the depths are forgotten when the ordering table ends and under a 2D fill (the map's background
+  is 2D); tests in `backend::hd` (a nearer polygon stays in front, the same depth keeps the order,
+  the clear and the frame end forget, the 1x picture doesn't change) and `backend::pgxp`
+  (depths record without positions).
+- **8.7, a texture bug found in play (2026-10-21):** with the depth test on and no wobble off, the
+  models came out flat-coloured: the depth test made the polygon need `1 / z` (`interp_w`), and
+  seeding the affine `u / v` was tied to `1 / z` *not* being needed, so every pixel sampled the
+  texel at (0, 0). The two are independent now; a test draws a depth-tested smooth textured
+  triangle and checks the texel at each end.

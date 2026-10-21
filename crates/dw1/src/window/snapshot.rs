@@ -156,7 +156,7 @@ impl Window {
              time (UTC): {stamp}\n\
              version: {}\n\
              vblank: {vblank}\n\
-             render scale: {}, no wobble: {}, full colour: {}\n\
+             render scale: {}, no wobble: {}, full colour: {}, depth test: {}\n\
              \n\
              screen.png      the PS1's picture (what the game drew, 1x)\n\
              screen-hd.png   the picture as shown at the render scale (if above 1)\n\
@@ -170,6 +170,7 @@ impl Window {
             psyq::gpu::with(|g| g.scale()),
             self.settings.no_wobble,
             self.settings.full_colour,
+            self.settings.depth,
             if problems.is_empty() {
                 String::new()
             } else {

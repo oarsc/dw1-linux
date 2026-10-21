@@ -160,3 +160,13 @@ ELF/Mach-O memory handling and the packaging, with no benefit for this fork. The
 **Justification:** Maintaining two host layers cost effort in the build script (`xcrun`/host-symbol checks), the ELF-vs-Mach-O data segment handling and the packaging, with no benefit for this fork. Upstream `dw1-silicon` already covers macOS.
 
 **Consequence:** Platform conditionals are no longer needed. Build/run/packaging are Linux-only (`./compile`, `./run`, `tools/make-linux.sh`), paths follow XDG, and the crash trace uses Linux `sigaction` + libgcc `backtrace()`.
+
+---
+
+## D16. The HD depth test is its own option, on by default
+
+**Decision:** The HD surfaces draw with a per-pixel depth test (`depth` in `settings.txt`, F6, `DW1_DEPTH=1`, default on), separate from "no wobble" (`no_wobble` / F3 / `DW1_PGXP`). The depths are the GTE's per-vertex view depths, which `backend::pgxp` already records; recording is on when either option is (positions for no wobble, depths for the test).
+
+**Justification:** The user reported (from play) a part of a model showing through another that lies in front of it, and asked for it to be fixed with a toggle, on by default, rather than tied to no wobble. The cause is the PS1's own drawing order (whole polygons sorted by average depth; no z-buffer), so a per-pixel test is an addition: it has to be off to see the exact original picture.
+
+**Consequence:** The 1x VRAM never changes, so game logic, saves and replays don't either. The test skips polygons drawn as the 1x picture (2D and sprites) and any polygon whose corners were not all projected this frame; `docs/phase8-plan.md` 8.7 lists the limits. Turning an option off stops its recording.

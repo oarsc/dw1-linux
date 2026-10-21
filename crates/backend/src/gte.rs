@@ -408,8 +408,9 @@ impl Gte {
         if q > 0x1FFFF { 0x1FFFF } else { q as u32 }
     }
 
-    /// The no-wobble option (`pgxp`): the float projection of the point just transformed, from
-    /// the unshifted MAC1..3 (x = view x * H / z + OFX, before the 11-bit cut; z = view depth),
+    /// The no-wobble and depth-test options (`pgxp`): the float projection of the point just
+    /// transformed, from the unshifted MAC1..3 (x = view x * H / z + OFX, before the 11-bit cut;
+    /// z = view depth),
     /// next to its integer result `sx`, `sy` (`raw`: the same before saturation). Reads the
     /// registers only: what the game sees is unchanged. Saturation is judged for this point
     /// alone (FLAG accumulates over an RTPT's three vertices).
@@ -486,7 +487,7 @@ impl Gte {
         let raw_y = (s >> 16) as i32;
         let y = self.sat_sxy(raw_y, F_SY2);
         self.push_sxy(x, y);
-        if crate::pgxp::enabled() {
+        if crate::pgxp::recording() {
             self.report_precise(&m, sf, lm, x, y, (raw_x, raw_y));
         }
         if !depth_cue {

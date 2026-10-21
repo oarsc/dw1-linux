@@ -44,6 +44,11 @@ const MAX_QUEUE: usize = 1 << 16;
 /// The mask bit of a surface pixel (the colour is 0x00RRGGBB).
 const MASK: u32 = 1 << 24;
 
+/// The depth test's relative slack: a polygon this much behind what is already at a pixel is
+/// still drawn. Two polygons that meet (a model's parts sharing an edge) come out a rounding
+/// apart, and the PS1 sees no depth at all: only a real difference may hide one.
+const DEPTH_EPS: f64 = 1e-4;
+
 /// A surface: VRAM rect x, y, w, h; `px` is (w * S) x (h * S) pixels, empty until used.
 struct Surf {
     x: i32,
@@ -51,6 +56,9 @@ struct Surf {
     w: i32,
     h: i32,
     px: Vec<u32>,
+    /// Its depth per pixel (the depth test): 1 / z of the nearest polygon drawn there, 0 for
+    /// nothing (a cleared pixel, a new frame, or content that came from the VRAM, not a queue).
+    dp: Vec<f32>,
     /// False when the pixels can't be trusted (the 1x VRAM was written behind our back, or a
     /// draw went elsewhere over this rect): the display falls back to the 1x picture, and the
     /// surface is rebuilt from the VRAM when it is registered again or at the next primitive.
@@ -115,6 +123,8 @@ struct TriCmd {
     /// Interpolated smoothly across the surface pixels though not precise (a 3D polygon with no
     /// wobble off); otherwise a polygon that isn't precise is drawn as the 1x one, block by block.
     smooth: bool,
+    /// The corners' view depths for the depth test (`None`: no test, drawn as the PS1 does).
+    depth: Option<[f32; 3]>,
 }
 
 struct RectCmd {
@@ -161,6 +171,9 @@ pub struct Hd {
     threads: usize,
     /// Full colour (an addition): shading and blending on 8-bit channels, no dither.
     full: bool,
+    /// The depth test (an addition): polygons are drawn per pixel only where they are not
+    /// behind, instead of the PS1's order of whole polygons.
+    depth: bool,
     missed: bool,
     /// Rough pixels the queued commands cover (1x), to decide whether threads pay.
     work: u64,
@@ -194,6 +207,7 @@ impl Hd {
                 threads.clamp(1, 16)
             },
             full: false,
+            depth: false,
             missed: false,
             flush_ns: 0,
             work: 0,
@@ -210,6 +224,19 @@ impl Hd {
     /// Full colour on or off for the primitives drawn from now on (call after `flush`).
     pub fn set_full_colour(&mut self, on: bool) {
         self.full = on;
+    }
+
+    /// The depth test on or off for the primitives drawn from now on (call after `flush`).
+    pub fn set_depth(&mut self, on: bool) {
+        self.depth = on;
+    }
+
+    /// Forgets every surface's depths (call after `flush`): with the frame drawn, the next one's
+    /// polygons are not ordered against it (the game's background may be 2D and write no depth).
+    pub fn clear_depth(&mut self) {
+        for s in &mut self.surfs {
+            s.dp.fill(0.0);
+        }
     }
 
     pub fn set_threads(&mut self, n: usize) {
@@ -246,6 +273,7 @@ impl Hd {
         let s = &mut self.surfs[si];
         if s.px.is_empty() {
             s.px = vec![0; (s.w * scale) as usize * (s.h * scale) as usize];
+            s.dp = vec![0.0; s.px.len()];
             let (x, y, w, h) = (s.x, s.y, s.w, s.h);
             Self::copy_from_vram(s, scale, vram, x, y, w, h);
         }
@@ -279,6 +307,8 @@ impl Hd {
         if !s.px.is_empty() {
             let (x, y, w, h) = (s.x, s.y, s.w, s.h);
             Self::copy_from_vram(s, scale, vram, x, y, w, h);
+            // The VRAM doesn't say how deep what it holds is: nothing is known again.
+            s.dp.fill(0.0);
         }
         s.valid = true;
     }
@@ -313,6 +343,7 @@ impl Hd {
             w,
             h,
             px: Vec::new(),
+            dp: Vec::new(),
             valid: true,
         });
         self.ensure(self.surfs.len() - 1, vram);
@@ -446,7 +477,9 @@ impl Hd {
                 parts: parts as i32,
                 scale,
                 full: self.full,
+                depth: self.depth,
                 rows: (0..self.surfs.len()).map(|_| Vec::new()).collect(),
+                drows: (0..self.surfs.len()).map(|_| Vec::new()).collect(),
             })
             .collect();
         for (si, s) in self.surfs.iter_mut().enumerate() {
@@ -454,8 +487,13 @@ impl Hd {
                 continue;
             }
             let pitch = (s.w * scale) as usize;
-            for (k, row) in s.px.chunks_mut(pitch).enumerate() {
+            for (k, (row, drow)) in
+                s.px.chunks_mut(pitch)
+                    .zip(s.dp.chunks_mut(pitch))
+                    .enumerate()
+            {
                 ps[k % parts].rows[si].push(row);
+                ps[k % parts].drows[si].push(drow);
             }
         }
         let queue = &self.queue;
@@ -480,7 +518,8 @@ impl Hd {
 
     /// A triangle the 1x path just drew (it takes the same early rejections). `precise`: use
     /// px / py / pz; `smooth`: interpolate across the surface pixels even so (both decided per
-    /// polygon by the caller, so both triangles of a quad agree).
+    /// polygon by the caller, so both triangles of a quad agree); `depth`: the corners' view
+    /// depths for the depth test.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn triangle(
         &mut self,
@@ -493,6 +532,7 @@ impl Hd {
         abr: i32,
         precise: bool,
         smooth: bool,
+        depth: Option<[f32; 3]>,
     ) {
         let minx = v.iter().map(|p| p.x).min().unwrap();
         let maxx = v.iter().map(|p| p.x).max().unwrap();
@@ -552,6 +592,7 @@ impl Hd {
                 abr,
                 precise,
                 smooth,
+                depth,
             }),
         );
     }
@@ -655,6 +696,8 @@ impl Hd {
                 let k1 = k0 + fw as usize * sc;
                 for j in (fy - s.y) as usize * sc..(fy + fh - s.y) as usize * sc {
                     s.px[j * pitch + k0..j * pitch + k1].fill(from15(c));
+                    // A fill is 2D: what it covers has no depth any more.
+                    s.dp[j * pitch + k0..j * pitch + k1].fill(0.0);
                 }
             }
         }
@@ -664,6 +707,7 @@ impl Hd {
     /// copied into the surfaces. Call `flush` before the 1x write.
     pub fn refresh(&mut self, vram: &[u16], x: i32, y: i32, w: i32, h: i32) {
         let scale = self.scale;
+        let sc = scale as usize;
         for (px, py, pw, ph) in pieces(x, y, w, h) {
             for s in &mut self.surfs {
                 let Some((fx, fy, fw, fh)) = Self::clip_rect(s, px, py, pw, ph) else {
@@ -673,6 +717,13 @@ impl Hd {
                     continue;
                 }
                 Self::copy_from_vram(s, scale, vram, fx, fy, fw, fh);
+                // The copy says nothing about depth.
+                let pitch = s.w as usize * sc;
+                let k0 = (fx - s.x) as usize * sc;
+                let k1 = k0 + fw as usize * sc;
+                for j in (fy - s.y) as usize * sc..(fy + fh - s.y) as usize * sc {
+                    s.dp[j * pitch + k0..j * pitch + k1].fill(0.0);
+                }
             }
         }
     }
@@ -764,14 +815,26 @@ struct Part<'a> {
     scale: i32,
     /// full colour (`Hd::full`)
     full: bool,
+    /// the depth test (`Hd::depth`)
+    depth: bool,
     /// per surface, its rows part, part + parts, ... in order
     rows: Vec<Vec<&'a mut [u32]>>,
+    /// the same rows' depths (see `Surf::dp`)
+    drows: Vec<Vec<&'a mut [f32]>>,
 }
 
 impl Part<'_> {
-    fn row(&mut self, si: usize, y: i32) -> &mut [u32] {
+    /// Row `y` of surface `si`: its colour and its depth.
+    fn rows(&mut self, si: usize, y: i32) -> (&mut [u32], &mut [f32]) {
         debug_assert!(y % self.parts == self.part);
-        &mut *self.rows[si][(y / self.parts) as usize]
+        let k = (y / self.parts) as usize;
+        let rows = &mut self.rows[si];
+        let drows = &mut self.drows[si];
+        (&mut *rows[k], &mut *drows[k])
+    }
+
+    fn row(&mut self, si: usize, y: i32) -> &mut [u32] {
+        self.rows(si, y).0
     }
 
     /// First row >= y that belongs to this part.
@@ -1448,10 +1511,14 @@ fn draw_tri(p: &mut Part, vram: &[u16], c: &Cmd, t: &TriCmd) {
     if a1 == 0 {
         return;
     }
+    let mut dep = t.depth;
     if a1 < 0 {
         v.swap(1, 2);
         px.swap(1, 2);
         py.swap(1, 2);
+        if let Some(d) = dep {
+            dep = Some([d[0], d[2], d[1]]);
+        }
     }
     let e = [
         Edge::new(px[1], py[1], px[2], py[2]),
@@ -1480,19 +1547,30 @@ fn draw_tri(p: &mut Part, vram: &[u16], c: &Cmd, t: &TriCmd) {
     // PG.2: perspective-correct mapping from the precise depths (1 / z interpolates linearly on
     // screen, so do u / z, v / z)
     let persp = t.precise && tex.is_some() && v.iter().all(|p| p.pz > 0.0);
+    // The depth test (an addition) interpolates 1 / z the same way. A polygon drawn as the 1x
+    // picture takes its values from the 1x rasterizer instead, one 1x pixel at a time: no test.
+    let depth = dep.filter(|_| p.depth && tri1x.is_none());
+    let interp_w = persp || depth.is_some();
     let mut pw = [0f64; 3];
     let mut puw = [0f64; 3];
     let mut pvw = [0f64; 3];
-    if persp {
+    let dvals = dep.unwrap_or_default();
+    if interp_w {
         for i in 0..3 {
-            pw[i] = 1.0 / v[i].pz as f64;
+            pw[i] = 1.0
+                / if persp {
+                    v[i].pz as f64
+                } else {
+                    dvals[i] as f64
+                };
             puw[i] = v[i].u as f64 * pw[i];
             pvw[i] = v[i].v as f64 * pw[i];
         }
     }
     let natt = if gouraud && tri1x.is_none() { 3 } else { 0 };
     // flat colour, or the 1x values at the 1x pixel: constant over each 1x pixel's S columns
-    let uniform = tri1x.is_some() || (natt == 0 && tex.is_none());
+    // (a depth-tested polygon is not: its depth can change inside one)
+    let uniform = tri1x.is_some() || (natt == 0 && tex.is_none() && depth.is_none());
 
     let (cx0, cy0, cx1, cy1) = hd_clip(st, &g, scale);
     let ymin = *py.iter().min().unwrap();
@@ -1537,7 +1615,7 @@ fn draw_tri(p: &mut Part, vram: &[u16], c: &Cmd, t: &TriCmd) {
         let (mut u24, mut v24, mut du24, mut dv24) = (0i64, 0i64, 0i64, 0i64);
         let (mut qw, mut qu, mut qv, mut dqw, mut dqu, mut dqv) =
             (0f64, 0f64, 0f64, 0f64, 0f64, 0f64);
-        if persp {
+        if interp_w {
             let e0 = (nr[0] + step[0] * xl) as f64;
             let e1 = (nr[1] + step[1] * xl) as f64;
             let e2 = (nr[2] + step[2] * xl) as f64;
@@ -1562,8 +1640,8 @@ fn draw_tri(p: &mut Part, vram: &[u16], c: &Cmd, t: &TriCmd) {
         let mut texel_c = 0i32;
         let mut tail = false;
         let (mut r, mut gr, mut b) = (v[0].r, v[0].g, v[0].b);
-        let row = p.row(g.si, row_y);
         let row1x = tri1x.as_ref().map(|t1| t1.row(row_y / scale + g.y));
+        let (row, drow) = p.rows(g.si, row_y);
         let mut x = xl;
         while x <= xr {
             let d = if dith {
@@ -1637,19 +1715,33 @@ fn draw_tri(p: &mut Part, vram: &[u16], c: &Cmd, t: &TriCmd) {
                 bx += (adv / sc) as i32;
                 continue;
             }
-            shade(
-                full,
-                st,
-                &mut row[x as usize],
-                tex.map(|t| (t, texel_c)),
-                (r, gr, b),
-                semi,
-                abr,
-                dith,
-                d,
-                true,
-                false,
-            );
+            // The depth test: drawn where this pixel's 1 / z is at least what is there (the
+            // nearer polygon; at the same depth the one drawn later shows, as the PS1's order
+            // does). The comparison allows a small relative slack, so a polygon next to one
+            // already there at the same depth isn't rejected for a rounding.
+            let passes = depth.is_none() || qw >= f64::from(drow[x as usize]) * (1.0 - DEPTH_EPS);
+            if passes {
+                let tc = tex.map(|t| (t, texel_c));
+                let painted = !skipped(st, row[x as usize], tc);
+                shade(
+                    full,
+                    st,
+                    &mut row[x as usize],
+                    tc,
+                    (r, gr, b),
+                    semi,
+                    abr,
+                    dith,
+                    d,
+                    true,
+                    false,
+                );
+                // Only an opaque polygon that drew this pixel says how deep it is: a see-through
+                // one lets what is behind it show, and a transparent texel draws nothing.
+                if depth.is_some() && painted && !semi {
+                    drow[x as usize] = qw as f32;
+                }
+            }
             x += 1;
             for k in 0..natt {
                 c24[k] += d24[k];
@@ -1683,12 +1775,19 @@ fn draw_rect(p: &mut Part, vram: &[u16], c: &Cmd, r: &RectCmd) {
         return;
     }
     let mut y = p.first_row(ys);
+    // An opaque rectangle is 2D content (the frame's clear is one): what it covers says nothing
+    // about depth any more, so a polygon drawn after it shows over it, as it does on the PS1.
+    // A see-through one lets what is there stay, depth included.
+    let clears_depth = p.depth && !r.semi;
     while y <= ye {
         let row_y = y;
         y += p.parts;
         let yy = row_y / scale + g.y - r.y0;
         let tv = if st.flip_y { r.v0 - yy } else { r.v0 + yy };
-        let row = p.row(g.si, row_y);
+        let (row, drow) = p.rows(g.si, row_y);
+        if clears_depth {
+            drow[xs as usize..=xe as usize].fill(0.0);
+        }
         let mut texel_c = 0i32;
         let mut x = xs;
         while x <= xe {
@@ -2186,7 +2285,18 @@ mod tests {
         };
         // integer corners are all outside x 0..319; the precise ones are half a pixel left
         let (a, b, c) = (v(320, 10, 319.5), v(321, 10, 320.5), v(320, 20, 319.5));
-        hd.triangle(&vram, &st, [&a, &b, &c], false, None, false, 0, true, false);
+        hd.triangle(
+            &vram,
+            &st,
+            [&a, &b, &c],
+            false,
+            None,
+            false,
+            0,
+            true,
+            false,
+            None,
+        );
         let mut out = Vec::new();
         hd.read_display(&vram, 0, 0, 320, 240, &mut out).unwrap();
         assert_ne!(out[48 * 1280 + 1279], 0);
@@ -2217,7 +2327,18 @@ mod tests {
             };
             // Covers the screen; its edge numerators shifted by 16 pass 64 bits.
             let (a, b, c) = (v(-4000, -4000), v(8000, -4000), v(-4000, 8000));
-            hd.triangle(&vram, &st, [&a, &b, &c], true, None, false, 0, true, false);
+            hd.triangle(
+                &vram,
+                &st,
+                [&a, &b, &c],
+                true,
+                None,
+                false,
+                0,
+                true,
+                false,
+                None,
+            );
             let mut out = Vec::new();
             let (w, _) = hd.read_display(&vram, 0, 0, 320, 240, &mut out).unwrap();
             for (x, y) in [(0, 0), (160, 120), (319, 239)] {
@@ -2333,5 +2454,151 @@ mod tests {
         assert_eq!(b[11 * S * w + 10 * S], 0x08_0000);
         // untouched: keeps its full-colour value
         assert_eq!(b[12 * S * w + 10 * S], 0x0A_0000);
+    }
+
+    // ---- the depth test (Phase 8.7) ----
+
+    /// Draws one triangle of the same square (20, 20)-(60, 20)-(20, 60) into `hd`, its corners
+    /// all at view depth `z`, at the surface's scale.
+    fn depth_tri(hd: &mut super::Hd, vram: &[u16], colour: (i32, i32, i32), z: f32) {
+        use crate::gpu::{State, Vtx};
+        let st = State {
+            clip_x1: 319,
+            clip_y1: 239,
+            ..State::default()
+        };
+        let (r, g, b) = colour;
+        let v = |x: i32, y: i32| Vtx {
+            x,
+            y,
+            r,
+            g,
+            b,
+            ..Vtx::default()
+        };
+        let (p0, p1, p2) = (v(20, 20), v(60, 20), v(20, 60));
+        // smooth (a 3D polygon that isn't drawn as the 1x picture), not precise: the depths are
+        // the ones the caller gives, as `Gpu` gives them when only the depth test is on.
+        hd.triangle(
+            vram,
+            &st,
+            [&p0, &p1, &p2],
+            false,
+            None,
+            false,
+            0,
+            false,
+            true,
+            Some([z; 3]),
+        );
+    }
+
+    /// An opaque untextured rectangle covering the whole buffer (the frame's clear).
+    fn depth_clear(hd: &mut super::Hd, vram: &[u16]) {
+        use crate::gpu::State;
+        let st = State {
+            clip_x1: 319,
+            clip_y1: 239,
+            ..State::default()
+        };
+        hd.rect(
+            vram,
+            &st,
+            (0, 0, 320, 240),
+            None,
+            (0, 0),
+            (0, 0, 0),
+            false,
+            0,
+        );
+    }
+
+    /// The pixel at (30, 30), inside every triangle of `depth_tri`.
+    fn depth_pixel(hd: &mut super::Hd, vram: &[u16], scale: usize) -> u32 {
+        let mut out = Vec::new();
+        let (w, _) = hd.read_display(vram, 0, 0, 320, 240, &mut out).unwrap();
+        out[30 * scale * w + 30 * scale]
+    }
+
+    const RED: (i32, i32, i32) = (255, 0, 0);
+    const GREEN: (i32, i32, i32) = (0, 255, 0);
+
+    #[test]
+    fn a_polygon_drawn_later_but_behind_does_not_cover_the_one_in_front() {
+        let vram = vec![0u16; VRAM_W * 512];
+        for (depth, later_wins) in [(false, true), (true, false)] {
+            let mut hd = super::Hd::new(2, 1);
+            hd.set_depth(depth);
+            hd.register(&vram, 0, 0, 320, 240);
+            // the nearer square first, then the farther one: the PS1's order draws the farther
+            // one over it (whole polygons, by their average depth)
+            depth_tri(&mut hd, &vram, RED, 100.0);
+            depth_tri(&mut hd, &vram, GREEN, 200.0);
+            let p = depth_pixel(&mut hd, &vram, 2);
+            let want = if later_wins { 0x00FF_00 } else { 0xFF_0000 };
+            assert_eq!(p, want, "depth {depth}");
+            // the other way round both agree
+            depth_clear(&mut hd, &vram);
+            depth_tri(&mut hd, &vram, GREEN, 200.0);
+            depth_tri(&mut hd, &vram, RED, 100.0);
+            assert_eq!(depth_pixel(&mut hd, &vram, 2), 0xFF_0000);
+        }
+    }
+
+    #[test]
+    fn the_frame_clear_forgets_the_depths() {
+        // the clear is a 2D fill: what the polygons of the next frame draw over it must show,
+        // however far away they are
+        let vram = vec![0u16; VRAM_W * 512];
+        let mut hd = super::Hd::new(2, 1);
+        hd.set_depth(true);
+        hd.register(&vram, 0, 0, 320, 240);
+        depth_tri(&mut hd, &vram, RED, 100.0);
+        depth_clear(&mut hd, &vram);
+        depth_tri(&mut hd, &vram, GREEN, 200.0);
+        assert_eq!(depth_pixel(&mut hd, &vram, 2), 0x00FF_00);
+    }
+
+    #[test]
+    fn the_end_of_the_frame_forgets_the_depths() {
+        // the map's background is 2D (tiles drawn as the 1x picture) and writes no depth: a new
+        // frame must not be ordered against the last one's polygons
+        let vram = vec![0u16; VRAM_W * 512];
+        let mut hd = super::Hd::new(2, 1);
+        hd.set_depth(true);
+        hd.register(&vram, 0, 0, 320, 240);
+        depth_tri(&mut hd, &vram, RED, 100.0);
+        hd.flush(&vram); // `Gpu::end_frame` flushes first
+        hd.clear_depth();
+        depth_tri(&mut hd, &vram, GREEN, 200.0);
+        assert_eq!(depth_pixel(&mut hd, &vram, 2), 0x00FF_00);
+    }
+
+    #[test]
+    fn a_polygon_at_the_same_depth_keeps_the_order() {
+        // decals share a depth with what they lie on: the one drawn later shows, as on the PS1
+        let vram = vec![0u16; VRAM_W * 512];
+        let mut hd = super::Hd::new(2, 1);
+        hd.set_depth(true);
+        hd.register(&vram, 0, 0, 320, 240);
+        depth_tri(&mut hd, &vram, RED, 100.0);
+        depth_tri(&mut hd, &vram, GREEN, 100.0);
+        assert_eq!(depth_pixel(&mut hd, &vram, 2), 0x00FF_00);
+    }
+
+    #[test]
+    fn the_depth_test_leaves_the_1x_vram_alone() {
+        let draw = |depth: bool| {
+            let mut g = Gpu::new();
+            g.set_scale(S as u32);
+            g.set_depth(depth);
+            setup(&mut g, 0x30_20_10);
+            g.gp0(&[0x6000_FF00, 20 << 16 | 20, 40 << 16 | 40]);
+            g.gp0(&[0x6000_00FF, 30 << 16 | 30, 40 << 16 | 40]);
+            (g.vram().to_vec(), g)
+        };
+        let (a, _) = draw(false);
+        let (b, _) = draw(true);
+        assert_eq!(a, b);
     }
 }

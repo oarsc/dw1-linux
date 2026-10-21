@@ -234,6 +234,7 @@ pub struct Gpu {
     hd: Option<Box<Hd>>,
     hd_threads: usize,
     hd_full: bool,
+    hd_depth: bool,
 }
 
 impl Default for Gpu {
@@ -254,6 +255,7 @@ impl Gpu {
             hd: None,
             hd_threads: 0,
             hd_full: false,
+            hd_depth: false,
         };
         g.reset(true);
         g
@@ -783,12 +785,15 @@ impl Gpu {
             self.triangle(&v[1], &v[2], &v[3], gouraud, t, semi, abr);
         }
         self.triangle(&v[0], &v[1], &v[2], gouraud, t, semi, abr);
-        // The same triangles again on the HD surfaces, in the 1x order. With no wobble on
-        // (`pgxp`), each corner the GTE projected this frame takes its precise position (the
-        // others keep their integer one, no depth), unless the mapping is a 2D sprite's.
+        // The same triangles again on the HD surfaces, in the 1x order. Recording (`pgxp`) gives
+        // each corner the GTE projected this frame its precise position and its view depth, for
+        // whichever of the two additions is on ("no wobble" uses the positions, the depth test
+        // the depths; a corner the GTE did not project keeps its integer position and no depth).
         if let Some(hd) = self.hd.as_deref_mut() {
+            let depth_on = self.hd_depth;
+            let positions = crate::pgxp::enabled();
             let (mut precise, mut found_all) = (false, false);
-            if crate::pgxp::enabled() {
+            if crate::pgxp::recording() {
                 let (ox, oy) = (self.st.ofs_x, self.st.ofs_y);
                 let xy: Vec<(i32, i32)> = v[..nv].iter().map(|p| (p.x - ox, p.y - oy)).collect();
                 let found = crate::pgxp::lookup_poly(&xy);
@@ -814,10 +819,18 @@ impl Gpu {
                 && !found_all
                 && sprite_like(&v[0], &v[1], &v[2])
                 && (!quad || sprite_like(&v[1], &v[2], &v[3]));
-            if flat_2d {
+            if flat_2d || !positions {
                 precise = false;
             }
             let smooth = textured && !flat_2d && !precise;
+            // The depth test takes the view depths when every corner has one (the corners the
+            // GTE did not project have none), and leaves 2D pictures alone: their corners come
+            // from sprites, and the PS1's order for them is the one to keep.
+            let depths = |k: [usize; 3]| {
+                let p = [&v[k[0]], &v[k[1]], &v[k[2]]];
+                (depth_on && !flat_2d && p.iter().all(|p| p.pz > 0.0))
+                    .then(|| [k[0], k[1], k[2]].map(|i| v[i].pz))
+            };
             if quad {
                 hd.triangle(
                     &self.vram,
@@ -829,6 +842,7 @@ impl Gpu {
                     abr,
                     precise,
                     smooth,
+                    depths([1, 2, 3]),
                 );
             }
             hd.triangle(
@@ -841,6 +855,7 @@ impl Gpu {
                 abr,
                 precise,
                 smooth,
+                depths([0, 1, 2]),
             );
         }
     }
@@ -1213,6 +1228,7 @@ impl Gpu {
         self.hd = (scale > 1).then(|| Box::new(Hd::new(scale, self.hd_threads)));
         if let Some(hd) = self.hd.as_deref_mut() {
             hd.set_full_colour(self.hd_full);
+            hd.set_depth(self.hd_depth);
         }
         self.hd_register_draw_area();
         self.hd_register_display();
@@ -1240,6 +1256,34 @@ impl Gpu {
 
     pub fn full_colour(&self) -> bool {
         self.hd_full
+    }
+
+    /// The HD depth test (an addition, HD surfaces only, Phase 8.7): a polygon is drawn per
+    /// pixel only where it is not behind what is already there, instead of the PS1's order of
+    /// whole polygons (which is by their average depth, so a polygon behind another can be
+    /// drawn over it). The 1x VRAM is the same either way.
+    pub fn set_depth(&mut self, on: bool) {
+        self.hd_sync();
+        self.hd_depth = on;
+        if let Some(hd) = self.hd.as_deref_mut() {
+            hd.set_depth(on);
+        }
+    }
+
+    pub fn depth(&self) -> bool {
+        self.hd_depth
+    }
+
+    /// The frame's ordering table is drawn (`DrawOTag` reached its end): the HD surfaces' depths
+    /// are done with. A game's background can be 2D (the map's tiles write no depth), so without
+    /// this a polygon would be ordered against the last frame's.
+    pub fn end_frame(&mut self) {
+        if self.hd_depth {
+            self.hd_sync();
+            if let Some(hd) = self.hd.as_deref_mut() {
+                hd.clear_depth();
+            }
+        }
     }
 
     /// Drawing threads for the HD surfaces (0 = one per logical core, at most 8).

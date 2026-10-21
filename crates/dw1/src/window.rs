@@ -11,8 +11,8 @@
 //!
 //! Picture settings (`settings.rs`, kept between runs; a note in the corner says what changed
 //! and whether it's original or an addition): F2 render scale (auto, 1, 2, 3, 4, 6, 8), F3 no
-//! wobble, F4 fit (integer, the original look, or fill at 4:3), F5 full colour, F11 or
-//! Super-Ctrl-F fullscreen. F12 writes a bug snapshot (`snapshot.rs`).
+//! wobble, F4 fit (integer, the original look, or fill at 4:3), F5 full colour, F6 depth test,
+//! F11 or Super-Ctrl-F fullscreen. F12 writes a bug snapshot (`snapshot.rs`).
 //!
 //! Before the game starts, `Window::splash` shows a short text screen (about 2.8 s; any key,
 //! button or click skips it) saying this is the native Linux build. `DW1_NO_SPLASH=1` skips it;
@@ -300,6 +300,7 @@ enum Note {
     Scale,
     Wobble,
     FullColour,
+    Depth,
     Fit,
     Fullscreen,
     /// `Window::message`.
@@ -326,6 +327,9 @@ impl Note {
             Note::FullColour if s.full_colour && scale > 1 => "Full colour: on - addition".into(),
             Note::FullColour if s.full_colour => "Full colour: on (needs render scale 2x+)".into(),
             Note::FullColour => "Full colour: off - original".into(),
+            Note::Depth if s.depth && scale > 1 => "Depth test: on - addition".into(),
+            Note::Depth if s.depth => "Depth test: on (needs render scale 2x+)".into(),
+            Note::Depth => "Depth test: off - original".into(),
             Note::Fit if s.fit == Fit::Fill => "Fit: fill window - addition".into(),
             Note::Fit => "Fit: whole multiples - original".into(),
             Note::Fullscreen if s.fullscreen => "Fullscreen (F11 for a window)".into(),
@@ -525,6 +529,7 @@ impl Window {
                     Scancode::F5 => {
                         self.change(Note::FullColour, |s| s.full_colour = !s.full_colour)
                     }
+                    Scancode::F6 => self.change(Note::Depth, |s| s.depth = !s.depth),
                     Scancode::F4 => self.change(Note::Fit, |s| {
                         s.fit = if s.fit == Fit::Fill {
                             Fit::Integer
@@ -583,6 +588,7 @@ impl Window {
             Note::Scale => k.scale = s.scale,
             Note::Wobble => k.no_wobble = s.no_wobble,
             Note::FullColour => k.full_colour = s.full_colour,
+            Note::Depth => k.depth = s.depth,
             Note::Fit => k.fit = s.fit,
             Note::Fullscreen => k.fullscreen = s.fullscreen,
             Note::Message => {}
@@ -617,12 +623,14 @@ impl Window {
         self.refresh_ns = refresh_ns(&self.window);
     }
 
-    /// Sets the GPU's render scale (and no wobble, full colour) for a window `pw x ph` pixels: changes only
-    /// when the settings or the window's size call for another scale.
+    /// Sets the GPU's render scale (and no wobble, full colour, depth test) for a window
+    /// `pw x ph` pixels: changes only when the settings or the window's size call for another
+    /// scale.
     fn apply_scale(&self, pw: u32, ph: u32) -> u32 {
         let (_, _, _, shown_h) = render::place(self.settings.fit, 320, 240, pw, ph);
         let scale = self.settings.scale_for(shown_h);
         let wobble_off = scale > 1 && self.settings.no_wobble;
+        let depth = scale > 1 && self.settings.depth;
         psyq::gpu::with(|g| {
             if g.scale() != scale {
                 g.set_scale(scale);
@@ -630,9 +638,16 @@ impl Window {
             if g.full_colour() != self.settings.full_colour {
                 g.set_full_colour(self.settings.full_colour);
             }
+            if g.depth() != depth {
+                g.set_depth(depth);
+            }
         });
+        // The GTE's projections are recorded when either option that reads them is on.
         if backend::pgxp::enabled() != wobble_off {
             backend::pgxp::set_enabled(wobble_off);
+        }
+        if backend::pgxp::depth_record() != depth {
+            backend::pgxp::set_depth_record(depth);
         }
         scale
     }

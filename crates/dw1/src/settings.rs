@@ -4,8 +4,8 @@
 //! `fit = integer` the picture is the PS1's, pixel for pixel.
 //!
 //! The file is `key = value` lines (`#` starts a comment); unknown keys and bad values are
-//! reported and left at their defaults. `DW1_SCALE`, `DW1_PGXP`, `DW1_FULL_COLOUR` and `DW1_FIT`
-//! override it for one run. Headless runs never read it.
+//! reported and left at their defaults. `DW1_SCALE`, `DW1_PGXP`, `DW1_FULL_COLOUR`, `DW1_DEPTH`
+//! and `DW1_FIT` override it for one run. Headless runs never read it.
 
 use std::path::{Path, PathBuf};
 
@@ -25,6 +25,7 @@ pub struct Settings {
     pub scale: Scale,
     pub no_wobble: bool,
     pub full_colour: bool,
+    pub depth: bool,
     pub fit: Fit,
     pub fullscreen: bool,
 }
@@ -35,6 +36,7 @@ impl Default for Settings {
             scale: Scale::Auto,
             no_wobble: true,
             full_colour: true,
+            depth: true,
             fit: Fit::Integer,
             fullscreen: false,
         }
@@ -108,6 +110,7 @@ impl Settings {
             }
             "no_wobble" => self.no_wobble = bool_of(value)?,
             "full_colour" => self.full_colour = bool_of(value)?,
+            "depth" => self.depth = bool_of(value)?,
             "fullscreen" => self.fullscreen = bool_of(value)?,
             "fit" => {
                 self.fit = match value {
@@ -122,12 +125,13 @@ impl Settings {
     }
 
     /// `DW1_SCALE=<n>` (a fixed scale), `DW1_PGXP=0/1`, `DW1_FULL_COLOUR=0/1`,
-    /// `DW1_FIT=integer/fill`.
+    /// `DW1_DEPTH=0/1`, `DW1_FIT=integer/fill`.
     fn apply_env(&mut self, var: impl Fn(&str) -> Option<String>) {
         for (env, key) in [
             ("DW1_SCALE", "render_scale"),
             ("DW1_PGXP", "no_wobble"),
             ("DW1_FULL_COLOUR", "full_colour"),
+            ("DW1_DEPTH", "depth"),
             ("DW1_FIT", "fit"),
         ] {
             if let Some(v) = var(env).filter(|v| !v.is_empty())
@@ -149,7 +153,8 @@ impl Settings {
         };
         format!(
             "# dw1-linux picture settings. Changed in the game: F2 render scale, F3 no wobble,\n\
-             # F4 fit, F5 full colour, F11 fullscreen. Delete this file for the defaults.\n\
+             # F4 fit, F5 full colour, F6 depth test, F11 fullscreen. Delete this file for the\n\
+             # defaults.\n\
              \n\
              # The resolution the game is drawn at: 1 is the original PS1 picture; 2 to 8 draw it\n\
              # that many times sharper (an addition); auto picks from the window's size.\n\
@@ -164,12 +169,19 @@ impl Settings {
              # above 1).\n\
              full_colour = {}\n\
              \n\
+             # Depth test: a polygon is drawn per pixel only where it isn't behind another, so\n\
+             # a part of a model that lies behind another is hidden by it (the PS1 has no\n\
+             # depth buffer: it sorts whole polygons by their average depth, so a polygon\n\
+             # behind another can be drawn over it; an addition; only with render_scale above\n\
+             # 1).\n\
+             depth = {}\n\
+             \n\
              # integer: the largest whole multiple of the PS1's picture, black around it (the\n\
              # original look). fill: as large as the window allows at 4:3 (an addition).\n\
              fit = {fit}\n\
              \n\
              fullscreen = {}\n",
-            self.no_wobble, self.full_colour, self.fullscreen
+            self.no_wobble, self.full_colour, self.depth, self.fullscreen
         )
     }
 
@@ -222,6 +234,7 @@ mod tests {
             scale: Scale::Fixed(3),
             no_wobble: false,
             full_colour: false,
+            depth: false,
             fit: Fit::Fill,
             fullscreen: true,
         };
@@ -241,6 +254,7 @@ mod tests {
         assert_eq!(problems.len(), 4, "{problems:?}");
         assert_eq!(s.scale, Scale::Auto);
         assert!(!s.no_wobble);
+        assert!(s.depth);
     }
 
     #[test]
@@ -249,11 +263,13 @@ mod tests {
         s.apply_env(|k| match k {
             "DW1_SCALE" => Some("1".into()),
             "DW1_FIT" => Some("fill".into()),
+            "DW1_DEPTH" => Some("off".into()),
             _ => None,
         });
         assert_eq!(s.scale, Scale::Fixed(1));
         assert_eq!(s.fit, Fit::Fill);
         assert!(s.no_wobble);
+        assert!(!s.depth);
     }
 
     #[test]
