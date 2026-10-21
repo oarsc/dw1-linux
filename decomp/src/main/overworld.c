@@ -473,10 +473,20 @@ void renderMapOverlays(LocalMapObjectInstance *instances, int16_t screenX,
 	GsOT_TAG *org;
 	int32_t i;
 	int16_t startFrame;
+#ifdef DW1_PLUS
+	/* Pixels the widescreen picture shows beyond the game's 320 on each side; the cull has to
+	 * cover them or objects pop in at the 4:3 edge. Drawing only: the animation frames are
+	 * advanced below, outside any cull test, as on the PS1. */
+	int32_t wideMargin;
+#endif
 
 	if (!MAP_LAYER_ENABLED) {
 		return;
 	}
+
+#ifdef DW1_PLUS
+	wideMargin = dw1_plus_margin();
+#endif
 
 	if ((CURRENT_SCREEN >= 115 && CURRENT_SCREEN < 120) ||
 	    CURRENT_SCREEN == 121 || CURRENT_SCREEN == 163 ||
@@ -501,12 +511,21 @@ void renderMapOverlays(LocalMapObjectInstance *instances, int16_t screenX,
 		if (instances->animSprites[startFrame] != -2 &&
 		    instances->flag != 1) {
 			obj = &LOCAL_MAP_OBJECTS[instances->animSprites[startFrame]];
+#ifdef DW1_PLUS
+			if (((screenX - 40 - wideMargin < instances->x + obj->width) &&
+			     (instances->x < screenX + 360 + wideMargin) &&
+			     (screenY - 60 < instances->y + obj->height) &&
+			     (instances->y < screenY + 300)) ||
+			    (instances->flag & 0x80) ||
+			    (instances->orderValue < 20)) {
+#else
 			if (((screenX - 40 < instances->x + obj->width) &&
 			     (instances->x < screenX + 360) &&
 			     (screenY - 60 < instances->y + obj->height) &&
 			     (instances->y < screenY + 300)) ||
 			    (instances->flag & 0x80) ||
 			    (instances->orderValue < 20)) {
+#endif
 				prim = (POLY_FT4 *)GsGetWorkBase();
 				SetPolyFT4(prim);
 				if (obj->transparency == 4) {

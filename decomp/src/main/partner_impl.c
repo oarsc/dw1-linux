@@ -2175,10 +2175,24 @@ void renderStatusBars(state)
 		STATUS_UI_OFFSET_X += 50;
 	else
 		STATUS_UI_OFFSET_X -= 50;
+#ifdef DW1_PLUS
+	/* The widescreen picture is wider: the bars keep the distance they have from the 4:3
+	 * picture's right edge, and slide back out past the wider edge to hide (the 4:3 parked
+	 * 240 would still be inside a margin). With the margins off these are 75 and 240. */
+	{
+		int32_t margin = dw1_plus_margin();
+
+		if (STATUS_UI_OFFSET_X > 240 + margin)
+			STATUS_UI_OFFSET_X = 240 + margin;
+		if (STATUS_UI_OFFSET_X < 75 + margin)
+			STATUS_UI_OFFSET_X = 75 + margin;
+	}
+#else
 	if (STATUS_UI_OFFSET_X > 240)
 		STATUS_UI_OFFSET_X = 240;
 	if (STATUS_UI_OFFSET_X < 75)
 		STATUS_UI_OFFSET_X = 75;
+#endif
 	renderRectPolyFT4(STATUS_UI_OFFSET_X, 85, 75, 8, 0, 236, 5, 0x7D06, 15, 0);
 	renderRectPolyFT4(STATUS_UI_OFFSET_X, 97, 75, 8, 0, 236, 5, 0x7D06, 15, 0);
 	if (PARTNER_PARA.happiness >= 0)

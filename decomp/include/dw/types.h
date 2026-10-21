@@ -1,6 +1,11 @@
 #ifndef DW_TYPES_H
 #define DW_TYPES_H
 
+/* DW1_PLUS additions rely on the native runtime, so enabling them also selects its C branches. */
+#if defined(DW1_PLUS) && !defined(DW1_NATIVE)
+#define DW1_NATIVE 1
+#endif
+
 #ifdef __MWERKS__
 
 #ifndef NULL

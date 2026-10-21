@@ -24,6 +24,32 @@ extern uint8_t TAMER_MODEL_BUFFER[];
 #endif
 
 extern GsOT *ACTIVE_ORDERING_TABLE;
+#ifdef DW1_PLUS
+/* The widescreen's draw-only wide test reads these (`renderDigimon`). */
+extern int8_t GAME_STATE;
+extern int32_t IS_IN_MENU;
+int32_t entityIsOffScreen(Entity *entity, int32_t width, int32_t height);
+
+/* Per entity: `renderDigimon` drew it in the last frame (the widened view included). The
+ * animation script's sounds ask, so a digimon walking in a margin is heard like one at the
+ * 4:3 picture's edge (main/anim.c). One frame late, which no sound can tell. */
+static uint8_t WIDE_DRAWN[ENTITY_MAX];
+
+int32_t dw1_plus_wide_drawn(void *entity)
+{
+	int32_t i;
+
+	if (dw1_plus_margin() == 0) {
+		return 0;
+	}
+	for (i = 0; i < ENTITY_MAX; i++) {
+		if (ENTITY_TABLE[i] == (Entity *)entity) {
+			return WIDE_DRAWN[i];
+		}
+	}
+	return 0;
+}
+#endif
 void renderDropShadow(Entity *entity);
 void setRotTransMatrix(MATRIX *m);
 int32_t addScreenPolyFT4(POLY_FT4 *poly, SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECTOR *v3);
@@ -2891,14 +2917,38 @@ void renderDigimon(instanceId)
 	int32_t boneCount;
 	int32_t i;
 
+#ifdef DW1_PLUS
+	WIDE_DRAWN[instanceId] = 0;
+#endif
+
 	if (ENTITY_TABLE[instanceId]->isOnMap != 2) {
 		if (ENTITY_TABLE[instanceId]->isOnMap == 0) {
 			return;
 		}
 		if (ENTITY_TABLE[instanceId]->isOnScreen == 0) {
+#ifdef DW1_PLUS
+			/* The widescreen picture is wider than the 320 the game culls against, so an
+			 * entity the game dropped can still be inside the widened view: draw it then.
+			 * In the overworld isOnScreen == 0 is only ever the game's own 320x240 test
+			 * (menus write it too, hence the GAME_STATE guard), and that test is a step
+			 * behind what is drawn: the renderer interpolates, and isOnScreen comes from
+			 * the last step. Retesting the 4:3 box here as well would then drop the model
+			 * for the one frame where the test says off and the drawn position says on --
+			 * a blink as an entity reaches the 4:3 edge -- so only the widened test is
+			 * used. */
+			if ((dw1_plus_margin() == 0) || (GAME_STATE != 0) || (IS_IN_MENU != 0) ||
+			    (entityIsOffScreen(ENTITY_TABLE[instanceId],
+			                       0x140 + 2 * dw1_plus_margin(), 0xf0) != 0)) {
+				return;
+			}
+#else
 			return;
+#endif
 		}
 	}
+#ifdef DW1_PLUS
+	WIDE_DRAWN[instanceId] = 1;
+#endif
 	pos = ENTITY_TABLE[instanceId]->posData;
 	boneCount = DIGIMON_DATA[ENTITY_TABLE[instanceId]->type].boneCount;
 	for (i = 0; i < boneCount; pos++, i++) {

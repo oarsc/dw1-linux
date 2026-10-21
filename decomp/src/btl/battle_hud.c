@@ -943,7 +943,11 @@ void BTL_renderFinisherReadyIcon(void)
 	}
 
 	setUVWH(prim, 0x80, 0x88, 37, 9);
+#ifdef DW1_PLUS
+	setXYWH(prim, 0x6e + dw1_plus_margin(), -0x4b, 37, 9);
+#else
 	setXYWH(prim, 0x6e, -0x4b, 37, 9);
+#endif
 	AddPrim(ACTIVE_ORDERING_TABLE->org + 0xa, prim++);
 	GsSetWorkBase((PACKET *)prim);
 
@@ -955,7 +959,11 @@ void BTL_renderFinisherReadyIcon(void)
 	}
 
 	setWH(&box, 0x29, 0xb);
+#ifdef DW1_PLUS
+	box.x = 0x6c + dw1_plus_margin();
+#else
 	box.x = 0x6c;
+#endif
 	box.y = -0x4c;
 	GsSortBoxFill(&box, ACTIVE_ORDERING_TABLE, 0xa);
 }
@@ -975,7 +983,13 @@ void BTL_renderFinisherGaugeSegment(int16_t i, int16_t idx)
 	}
 
 	setUVWH(prim, BTL_FINISHER_SEGMENT_U[i], 0x9d, BTL_FINISHER_SEGMENT_W[i], 15);
-	setXYWH(prim, BTL_FINISHER_SEGMENT_X[i] + 0x37, -0x4f, BTL_FINISHER_SEGMENT_W[i], 15);
+#ifdef DW1_PLUS
+	setXYWH(prim, BTL_FINISHER_SEGMENT_X[i] + 0x37 + dw1_plus_margin(), -0x4f,
+		BTL_FINISHER_SEGMENT_W[i], 15);
+#else
+	setXYWH(prim, BTL_FINISHER_SEGMENT_X[i] + 0x37, -0x4f,
+		BTL_FINISHER_SEGMENT_W[i], 15);
+#endif
 	AddPrim(ACTIVE_ORDERING_TABLE->org + 0xa, prim++);
 	GsSetWorkBase((PACKET *)prim);
 }
@@ -1073,6 +1087,15 @@ void BTL_renderPartnerStatusBars(int16_t idx)
 			cur = PARTNER_ENTITY.digimonEntity.stats.current.currentMP;
 			fill = *mpPtr * 50 / maxMp;
 		}
+#ifdef DW1_PLUS
+		/* The widescreen picture is wider: the bars keep the distance they have from the 4:3
+		 * picture's right edge, and the parked step (0) is pushed out far enough to leave the
+		 * wider picture too. With the margins off x0 is the table's value. */
+		x0 += dw1_plus_margin();
+		if (((bar == 0) ? BTL_HP_BAR_STEP : BTL_MP_BAR_STEP) == 0) {
+			x0 += dw1_plus_margin();
+		}
+#endif
 		BTL_renderNumber(0, 4, x0 + 0x49, y0 - 3, cur, 0xa);
 		prim = (POLY_FT4 *)GsGetWorkBase();
 		for (k = 0; k < 3; k++, p--) {

@@ -253,6 +253,11 @@ int16_t arg0;
 	int16_t count;
 
 	base = ((COMBAT_DATA_PTR->player.numCommands[0] - 1) * 0xe) - 0x8c;
+#ifdef DW1_PLUS
+	/* The widescreen picture is wider: the menu keeps the distance it has from the 4:3
+	 * picture's left edge (the labels below and the command name are shifted too). */
+	base -= dw1_plus_margin();
+#endif
 	if (GAME_STATE == 1) {
 		BTL_drawHoveredCommandName();
 	}
@@ -342,6 +347,9 @@ int16_t arg0;
 		} else {
 			width = 0xe;
 		}
+#ifdef DW1_PLUS
+		rowY -= dw1_plus_margin();
+#endif
 		setXY4(prim, rowY - 0x8f, BTL_COMMAND_MENU_X, (rowY - 0x8f) + width, BTL_COMMAND_MENU_X, rowY - 0x8f, BTL_COMMAND_MENU_Y, (rowY - 0x8f) + width, BTL_COMMAND_MENU_Y);
 		AddPrim(ACTIVE_ORDERING_TABLE->org + 7, prim++);
 	}
@@ -387,7 +395,11 @@ void BTL_drawHoveredCommandName(void)
 		drawString(BTL_COMMAND_NAMES[cmd - 1], 0, 0xd8);
 	}
 
+#ifdef DW1_PLUS
+	renderString(0, -0x8c - dw1_plus_margin(), -0x42, 0x90, 0xc, 0, 0xd8, 7, 1);
+#else
 	renderString(0, -0x8c, -0x42, 0x90, 0xc, 0, 0xd8, 7, 1);
+#endif
 }
 
 void BTL_initializeFinisherChargeup(void)

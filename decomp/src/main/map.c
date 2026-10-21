@@ -2781,6 +2781,74 @@ int8_t MAP_TILE_X;
 int8_t PREV_TILE_X;
 int8_t MAP_TILE_Y;
 int8_t PREV_TILE_Y;
+#ifdef DW1_PLUS
+/* Most tiles a map has (MAP_TILES[35]), and the bytes of one 128x128 8-bit tile. */
+#define WIDE_TILES_MAX 35
+#define WIDE_TILE_BYTES (128 * 128)
+/* The map's tile pixels, copied out of GENERAL_BUFFER_PTR by setupMap: battles and sound
+ * loading overwrite the game's copy, but the widescreen's extra column is drawn for as long as
+ * the map is up. */
+static uint8_t WIDE_TILE_PIXELS[WIDE_TILES_MAX * WIDE_TILE_BYTES];
+static int32_t WIDE_TILE_HOLES_FILLED;
+/* GCAN09 has a transparent patch in its left-edge tile. Outside the original 4:3 draw area
+ * there is no lower layer to show through those texels, so they form a black rectangle. Extend
+ * the nearest opaque texel across holes in the HD-only copy; never touch map data or VRAM. */
+static void fillWideTileHoles(uint8_t *pixels)
+{
+	int32_t x;
+	int32_t y;
+	int32_t distance;
+	int32_t source;
+
+	for (y = 0; y < 128; y++) {
+		for (x = 0; x < 128; x++) {
+			if (pixels[y * 128 + x] != 0) {
+				continue;
+			}
+			for (distance = 1; distance < 128; distance++) {
+				source = x - distance;
+				if ((source >= 0) && (pixels[y * 128 + source] != 0)) {
+					pixels[y * 128 + x] = pixels[y * 128 + source];
+					break;
+				}
+				source = x + distance;
+				if ((source < 128) && (pixels[y * 128 + source] != 0)) {
+					pixels[y * 128 + x] = pixels[y * 128 + source];
+					break;
+				}
+			}
+		}
+	}
+}
+/* One extra widescreen map tile, queued like a primitive but taken by the native GPU's
+ * draw_chain as a widescreen addition (crates/psyq/src/gpu.rs, DW1_PLUS_TILE_OP). The words are
+ * laid out as draw_chain reads them: the tag first (setlen and addPrim write its length and
+ * link), then the body. P_TAG is eight bytes (its second word is the colour and code of a real
+ * primitive), so the fields are plain words here: nothing ever sends this packet to a GPU. */
+typedef struct {
+	uint32_t tag;
+	uint32_t cmd;
+	uint32_t xy;
+	uint32_t wh;
+	uint32_t tileClut;
+} WideTilePrim;
+
+static void queueWideTile(GsOT_TAG *ot, int32_t index, int16_t x, int16_t y,
+			  int16_t width, int16_t height, int16_t u, int16_t v)
+{
+	WideTilePrim *prim;
+
+	prim = (WideTilePrim *)GsGetWorkBase();
+	prim->cmd = 0xE7000000 | ((uint32_t)v << 13) | ((uint32_t)u << 6) |
+		    (uint32_t)index;
+	prim->xy = (uint16_t)x | ((uint32_t)(uint16_t)y << 16);
+	prim->wh = (uint16_t)width | ((uint32_t)(uint16_t)height << 16);
+	prim->tileClut = 0x7800;
+	setlen(prim, 4);
+	addPrim(&ot[0xfff], prim);
+	GsSetWorkBase((PACKET *)(prim + 1));
+}
+#endif
 int32_t CAMERA_FOLLOW_PLAYER;
 int16_t CAMERA_X_PREVIOUS;
 int16_t CAMERA_Y_PREVIOUS;
@@ -2792,6 +2860,69 @@ int16_t CAMERA_MOVE_FINAL_X;
 int16_t CAMERA_MOVE_FINAL_Y;
 int8_t CAMERA_MOVE_DELTA_X;
 int8_t CAMERA_MOVE_DELTA_Y;
+
+#ifdef DW1_PLUS
+/* The wide picture extends this far beyond the original 320-pixel camera view on either side.
+ * Keep the original camera bounds when widescreen is off or when this map cannot fill the wide
+ * view; otherwise stop at the point where a map edge reaches the edge of the picture. */
+static int32_t mapCameraXMargin(void)
+{
+	int32_t margin;
+	int32_t mapWidth;
+
+	margin = dw1_plus_margin();
+	mapWidth = MAP_TILE_DATA.width * 128;
+	if ((mapWidth < (320 + (margin * 2))) || (margin < 0)) {
+		margin = 0;
+	}
+	return margin;
+}
+
+static int32_t mapCameraXMin(void)
+{
+	int32_t margin;
+	int32_t mapWidth;
+
+	margin = dw1_plus_margin();
+	mapWidth = MAP_TILE_DATA.width * 128;
+	if ((margin > 0) && (mapWidth < (320 + (margin * 2)))) {
+		return (mapWidth / 2) - 160;
+	}
+	return mapCameraXMargin();
+}
+
+static int32_t mapCameraXMax(void)
+{
+	int32_t margin;
+	int32_t mapWidth;
+
+	margin = dw1_plus_margin();
+	mapWidth = MAP_TILE_DATA.width * 128;
+	if ((margin > 0) && (mapWidth < (320 + (margin * 2)))) {
+		return (mapWidth / 2) - 160;
+	}
+	return (MAP_TILE_DATA.width * 128) - 320 - mapCameraXMargin();
+}
+
+static void updateMapCameraXLimits(void)
+{
+	int32_t margin;
+	int32_t mapWidth;
+	int32_t offsetMax;
+
+	margin = mapCameraXMargin();
+	mapWidth = MAP_TILE_DATA.width * 128;
+	if ((dw1_plus_margin() > 0) && (mapWidth < (320 + (dw1_plus_margin() * 2)))) {
+		DRAW_OFFSET_LIMIT_X_MAX = 160;
+		DRAW_OFFSET_LIMIT_X_MIN = 160;
+		return;
+	}
+	offsetMax = (mapWidth / 2) - margin;
+	DRAW_OFFSET_LIMIT_X_MAX = offsetMax;
+	DRAW_OFFSET_LIMIT_X_MIN = -(mapWidth - 320 - (margin * 2) - offsetMax);
+}
+#endif
+
 int16_t SCRIPT_MAP_CHANGE_STATE;
 uint8_t TARGET_MAP;
 int8_t TRN_LOADING_COMPLETE;
@@ -3950,6 +4081,108 @@ void initializeMap(void)
 	SKIP_DAYTIME_TRANSITION = 0;
 }
 
+#ifdef DW1_PLUS
+/* Widescreen: the map columns just outside the four the game keeps in VRAM. Those start at
+ * MAP_TILE_X, and the game recycles a column's VRAM slot as soon as the column leaves them (the
+ * camera gives the streaming no more than that in 4:3), so a column the wider picture still shows
+ * can already hold another column's pixels, or not have been uploaded at all yet. Both neighbours
+ * are therefore drawn on the HD surfaces from the pixels setupMap kept -- always, so what the
+ * margins show never depends on the streaming's timing. Their rectangles only reach into the
+ * margins (the left one ends where the game's first column starts, at or before the 4:3 edge in
+ * primitive space; the right one starts at or after it), and Hd::native_rect drops them when they
+ * fall outside the picture. The 1x picture and the game's own tiles, flags and state are
+ * untouched, and at 1x or with widescreen off dw1_plus_margin() is 0 and nothing is queued. */
+void renderWideMapColumn(GsOT_TAG *ot)
+{
+	int32_t margin;
+	int32_t index;
+	int32_t column;
+	int32_t row;
+	int32_t tile;
+	int32_t tileCount;
+	int32_t tileX;
+	int32_t tileY;
+	int32_t left;
+	int32_t top;
+	int32_t right;
+	int32_t bottom;
+	int16_t x;
+	int16_t y;
+
+	margin = dw1_plus_margin();
+	if (margin == 0) {
+		return;
+	}
+	if ((CURRENT_SCREEN == 44) && !WIDE_TILE_HOLES_FILLED) {
+		tileCount = MAP_TILE_DATA.width * MAP_TILE_DATA.height;
+		for (tile = 0; tile < tileCount; tile++) {
+			if (MAP_TILES[tile] != -1) {
+				fillWideTileHoles(&WIDE_TILE_PIXELS[tile * WIDE_TILE_BYTES]);
+			}
+		}
+		WIDE_TILE_HOLES_FILLED = 1;
+	}
+
+	for (column = -1; column <= 4; column += 5) {
+		/* The game draws MAP_TILE_X .. MAP_TILE_X + 3. */
+		if (((column < 0) && (MAP_TILE_X < 1)) ||
+		    ((column > 0) && ((MAP_TILE_X + 4) >= MAP_TILE_DATA.width))) {
+			continue;
+		}
+
+		for (row = 0; row < 3; row++) {
+			if ((MAP_TILE_Y + row) >= MAP_TILE_DATA.height) {
+				break;
+			}
+
+			index = (MAP_TILE_X + column) + (MAP_TILE_Y + row) * MAP_TILE_DATA.width;
+			if ((index < 0) || (index >= WIDE_TILES_MAX)) {
+				continue;
+			}
+			if (MAP_TILES[index] == -1) {
+				/* Black, like the game's empty tiles: the frame's clear already is. */
+				continue;
+			}
+
+			x = (MAP_TILE_DATA.tiles[index].posX - 160) -
+			    (MAP_TILE_DATA.cameraX - (160 - DRAWING_OFFSET_X));
+			y = (MAP_TILE_DATA.tiles[index].posY - 120) -
+			    (MAP_TILE_DATA.cameraY - (120 - DRAWING_OFFSET_Y));
+
+			queueWideTile(ot, index, x, y, 128, 128, 0, 0);
+		}
+	}
+
+	/* Fill transparent holes in GCAN09's tile which crosses the left edge of the 4:3 view.
+	 * Queue only its intersection with the left margin, so the PS1 picture stays byte-for-byte
+	 * untouched. */
+	if (CURRENT_SCREEN == 44) {
+		tileCount = MAP_TILE_DATA.width * MAP_TILE_DATA.height;
+		for (index = 0; index < tileCount; index++) {
+			if (MAP_TILES[index] == -1) {
+				continue;
+			}
+			tileX = (MAP_TILE_DATA.tiles[index].posX - 160) -
+				(MAP_TILE_DATA.cameraX - (160 - DRAWING_OFFSET_X));
+			tileY = (MAP_TILE_DATA.tiles[index].posY - 120) -
+				(MAP_TILE_DATA.cameraY - (120 - DRAWING_OFFSET_Y));
+			left = tileX;
+			if (left < -margin) left = -margin;
+			right = tileX + 128;
+			if (right > 0) right = 0;
+			top = tileY;
+			if (top < 0) top = 0;
+			bottom = tileY + 128;
+			if (bottom > 240) bottom = 240;
+			if ((right > left) && (bottom > top)) {
+				queueWideTile(ot, index, left, top, right - left, bottom - top,
+					      left - tileX, top - tileY);
+			}
+		}
+	}
+}
+#endif
+
 void renderMap(int32_t arg0)
 {
 	POLY_FT4 *prim;
@@ -3985,6 +4218,10 @@ void renderMap(int32_t arg0)
 	}
 
 	ot = ACTIVE_ORDERING_TABLE->org;
+
+#ifdef DW1_PLUS
+	renderWideMapColumn(ot);
+#endif
 
 	for (row = 0; row < 3; row++) {
 		for (col = 0; col < columns; col++) {
@@ -4234,6 +4471,10 @@ void setupMap(void)
 	int32_t y;
 	int32_t i;
 	int16_t numCluts;
+#ifdef DW1_PLUS
+	uint8_t *wideTile;
+	WIDE_TILE_HOLES_FILLED = 0;
+#endif
 
 	data = (u_long *)GENERAL_BUFFER_PTR;
 	data++;
@@ -4265,6 +4506,9 @@ void setupMap(void)
 
 	updateTimeOfDay();
 
+#ifdef DW1_PLUS
+	wideTile = WIDE_TILE_PIXELS;
+#endif
 	tile = MAP_TILE_DATA.tiles;
 	for (y = 0; y < MAP_TILE_DATA.height; y++) {
 		for (x = 0; x < MAP_TILE_DATA.width; x++) {
@@ -4273,21 +4517,39 @@ void setupMap(void)
 				fillTileData(tile, (uint8_t *)NULL,
 					     x % 4 * 64 + 768, y % 3 * 128,
 					     x * 128, y * 128);
+#ifdef DW1_PLUS
+				memset((uint8_t *)wideTile, 0, WIDE_TILE_BYTES);
+#endif
 			} else {
 				data++;
 				fillTileData(tile, (uint8_t *)data,
 					     x % 4 * 64 + 768, y % 3 * 128,
 					     x * 128, y * 128);
+#ifdef DW1_PLUS
+				/* The pixels as uploaded: 128 bytes a row, so the extra column can be
+				 * drawn without a fifth VRAM slot (there is none). */
+				memcpy((uint8_t *)wideTile, (uint8_t *)data, WIDE_TILE_BYTES);
+#endif
 				data += 4096;
 			}
+#ifdef DW1_PLUS
+			wideTile += WIDE_TILE_BYTES;
+#endif
 			tile++;
 		}
 	}
+#ifdef DW1_PLUS
+	dw1_plus_set_tile_pixels(WIDE_TILE_PIXELS);
+#endif
 
 	MAP_TILE_DATA.cameraX = ((MAP_TILE_DATA.width * 128) / 2) - 160;
 	MAP_TILE_DATA.cameraY = ((MAP_TILE_DATA.height * 128) / 2) - 120;
+#ifdef DW1_PLUS
+	updateMapCameraXLimits();
+#else
 	DRAW_OFFSET_LIMIT_X_MAX = MAP_TILE_DATA.cameraX + 160;
 	DRAW_OFFSET_LIMIT_X_MIN = -(MAP_TILE_DATA.width * 128 - 320 - DRAW_OFFSET_LIMIT_X_MAX);
+#endif
 	DRAW_OFFSET_LIMIT_Y_MAX = MAP_TILE_DATA.cameraY + 120;
 	DRAW_OFFSET_LIMIT_Y_MIN = -(MAP_TILE_DATA.height * 128 - 240 - DRAW_OFFSET_LIMIT_Y_MAX);
 	PLAYER_OFFSET_X = DRAWING_OFFSET_X = 160;
@@ -4380,6 +4642,10 @@ void initializeDrawingOffsets(MapTileData *tiles)
 	SVECTOR tamerPos;
 	SVECTOR viewScreen;
 	SVECTOR tamerScreen;
+#ifdef DW1_PLUS
+	int32_t cameraMinX;
+	int32_t cameraMaxX;
+#endif
 
 	SetRotMatrix(&GsWSMATRIX);
 	SetTransMatrix(&GsWSMATRIX);
@@ -4400,6 +4666,18 @@ void initializeDrawingOffsets(MapTileData *tiles)
 	PLAYER_OFFSET_X += viewScreen.vx - tamerScreen.vx;
 	PLAYER_OFFSET_Y += viewScreen.vy - tamerScreen.vy;
 
+#ifdef DW1_PLUS
+	updateMapCameraXLimits();
+	cameraMinX = mapCameraXMin();
+	cameraMaxX = mapCameraXMax();
+	if (MAP_TILE_DATA.cameraX < cameraMinX) {
+		MAP_TILE_DATA.cameraX = cameraMinX;
+		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MAX;
+	} else if (MAP_TILE_DATA.cameraX > cameraMaxX) {
+		MAP_TILE_DATA.cameraX = cameraMaxX;
+		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MIN;
+	}
+#else
 	if (MAP_TILE_DATA.cameraX < 0) {
 		MAP_TILE_DATA.cameraX = 0;
 		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MAX;
@@ -4407,6 +4685,7 @@ void initializeDrawingOffsets(MapTileData *tiles)
 		MAP_TILE_DATA.cameraX = (MAP_TILE_DATA.width * 128) - 320;
 		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MIN;
 	}
+#endif
 
 	if (MAP_TILE_DATA.cameraY < 0) {
 		MAP_TILE_DATA.cameraY = 0;
@@ -4824,7 +5103,11 @@ void handleTileUpdate(int32_t input, int32_t force)
 				MAP_TILE_X = 1;
 			}
 
+#ifdef DW1_PLUS
+			if (MAP_TILE_DATA.cameraX >= mapCameraXMax()) {
+#else
 			if (MAP_TILE_DATA.cameraX >= ((MAP_TILE_DATA.width * 128) - 320)) {
+#endif
 				MAP_TILE_X = MAP_TILE_DATA.width - 4;
 				if (MAP_TILE_X < 0) {
 					MAP_TILE_X = 0;
@@ -4844,8 +5127,27 @@ void handleTileUpdate(int32_t input, int32_t force)
 
 void cameraIsAtEdge(int32_t *outX, int32_t *outY)
 {
-	*outX = *outY = 1;
+#ifdef DW1_PLUS
+	int32_t cameraMinX;
+	int32_t cameraMaxX;
+#endif
 
+	*outX = *outY = 1;
+#ifdef DW1_PLUS
+	updateMapCameraXLimits();
+	cameraMinX = mapCameraXMin();
+	cameraMaxX = mapCameraXMax();
+
+	if (MAP_TILE_DATA.cameraX < cameraMinX) {
+		MAP_TILE_DATA.cameraX = cameraMinX;
+		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MAX;
+		*outX = 0;
+	} else if (MAP_TILE_DATA.cameraX > cameraMaxX) {
+		MAP_TILE_DATA.cameraX = cameraMaxX;
+		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MIN;
+		*outX = 0;
+	}
+#else
 	if (MAP_TILE_DATA.cameraX < 0) {
 		MAP_TILE_DATA.cameraX = 0;
 		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MAX;
@@ -4855,6 +5157,7 @@ void cameraIsAtEdge(int32_t *outX, int32_t *outY)
 		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MIN;
 		*outX = 0;
 	}
+#endif
 
 	if (MAP_TILE_DATA.cameraY < 0) {
 		MAP_TILE_DATA.cameraY = 0;
@@ -4896,6 +5199,9 @@ void tickCameraMovement(instanceId)
 	int16_t oldCameraX;
 	int16_t oldCameraY;
 	uint32_t flags;
+#ifdef DW1_PLUS
+	updateMapCameraXLimits();
+#endif
 
 	if (CAMERA_HAS_TARGET == 0) {
 		SetRotMatrix(&GsWSMATRIX);
