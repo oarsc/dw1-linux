@@ -850,7 +850,16 @@ StringRect TAMER_WINDOW_NAME_STRING[11] = {
 };
 #endif
 
+#ifdef DW1_NATIVE
+/* `renderEvoChartView` and the chart selection loop read 62 entries (0x3e), one past this table.
+ * On the PS1 that 62nd entry was the first `Line` of `MAIN_D_8012472C`, which the linker placed
+ * right after the table (US 0x8012472C, size 0x1e8): its position is off-screen, so nothing was
+ * drawn. Here the neighbouring bytes are .data padding (zeros), which drew a grey chart cell at
+ * the screen's top-left corner, so keep the bytes the PS1 read as a real last entry. */
+EvoChartEntry EVO_CHART_BOXES[62] = {
+#else
 EvoChartEntry EVO_CHART_BOXES[61] = {
+#endif
 	{ 0x001e, 0x002b, 0x40, 0x90, 0x00, 0x00 },
 	{ 0x0043, 0x002b, 0x60, 0x90, 0x00, 0x00 },
 	{ 0x0068, 0x002b, 0x40, 0x80, 0x00, 0x00 },
@@ -912,6 +921,9 @@ EvoChartEntry EVO_CHART_BOXES[61] = {
 	{ 0x0112, 0x0051, 0x20, 0x00, 0x00, 0x00 },
 	{ 0x00fa, 0x0064, 0x40, 0x00, 0x04, 0x00 },
 	{ 0x00fa, 0x008a, 0x60, 0x00, 0x03, 0x00 },
+#ifdef DW1_NATIVE
+	{ 0xff6e, 0xffbd, 0x92, 0xbd, 0x00, 0x00 },
+#endif
 };
 
 Line MAIN_D_8012472C[14] = {
