@@ -603,8 +603,12 @@ impl Hd {
         } else {
             (minx as i64, maxx as i64, miny as i64, maxy as i64)
         };
-        if fx1 < st.clip_x0 as i64
-            || fx0 > st.clip_x1 as i64 + precise as i64
+        // Widescreen: the picture is wider than the game's 320, so a prim wholly in a margin is
+        // still wanted (the 1x path drops it, the margins must not). `hd_clip` keeps the rows at
+        // the draw area and takes the margins off a surface without any.
+        let mx = if self.wide { WIDE_MARGIN as i64 } else { 0 };
+        if fx1 < st.clip_x0 as i64 - mx
+            || fx0 > st.clip_x1 as i64 + precise as i64 + mx
             || fy1 < st.clip_y0 as i64
             || fy0 > st.clip_y1 as i64 + precise as i64
         {

@@ -3972,56 +3972,67 @@ void initializeMap(void)
 }
 
 #ifdef DW1_PLUS
-/* Widescreen: the map column just left of the four the game keeps in VRAM. Those start at
- * MAP_TILE_X, normally well left of the picture's 4:3 edge, but the camera can bring that edge
- * past the first column's right edge: the column before it is then needed, and it has no VRAM
- * slot (four are cached), so it is drawn on the HD surfaces from the pixels setupMap kept. The
- * position is setPosDataMapTile's, so the HD path places it exactly where the game puts its own
- * tiles (it adds the GPU's drawing offset to both); the 1x picture and the game's own tiles,
- * flags and state are untouched, and at 1x or with widescreen off dw1_plus_margin() is 0 and
- * nothing is queued. */
+/* Widescreen: the map columns just outside the four the game keeps in VRAM. Those start at
+ * MAP_TILE_X, and the game recycles a column's VRAM slot as soon as the column leaves them (the
+ * camera gives the streaming no more than that in 4:3), so a column the wider picture still shows
+ * can already hold another column's pixels, or not have been uploaded at all yet. Both neighbours
+ * are therefore drawn on the HD surfaces from the pixels setupMap kept -- always, so what the
+ * margins show never depends on the streaming's timing. Their rectangles only reach into the
+ * margins (the left one ends where the game's first column starts, at or before the 4:3 edge in
+ * primitive space; the right one starts at or after it), and Hd::native_rect drops them when they
+ * fall outside the picture. The 1x picture and the game's own tiles, flags and state are
+ * untouched, and at 1x or with widescreen off dw1_plus_margin() is 0 and nothing is queued. */
 void renderWideMapColumn(GsOT_TAG *ot)
 {
 	WideTilePrim *prim;
 	int32_t margin;
 	int32_t index;
+	int32_t column;
 	int32_t row;
 	int16_t x;
 	int16_t y;
 
 	margin = dw1_plus_margin();
-	if ((margin == 0) || (MAP_TILE_X < 1)) {
+	if (margin == 0) {
 		return;
 	}
 
-	for (row = 0; row < 3; row++) {
-		if ((MAP_TILE_Y + row) >= MAP_TILE_DATA.height) {
-			break;
-		}
-
-		index = (MAP_TILE_X - 1) + (MAP_TILE_Y + row) * MAP_TILE_DATA.width;
-		if ((index < 0) || (index >= WIDE_TILES_MAX)) {
-			continue;
-		}
-		if (MAP_TILES[index] == -1) {
-			/* Black, like the game's empty tiles: the frame's clear already is. */
+	for (column = -1; column <= 4; column += 5) {
+		/* The game draws MAP_TILE_X .. MAP_TILE_X + 3. */
+		if (((column < 0) && (MAP_TILE_X < 1)) ||
+		    ((column > 0) && ((MAP_TILE_X + 4) >= MAP_TILE_DATA.width))) {
 			continue;
 		}
 
-		x = (MAP_TILE_DATA.tiles[index].posX - 160) -
-		    (MAP_TILE_DATA.cameraX - (160 - DRAWING_OFFSET_X));
-		y = (MAP_TILE_DATA.tiles[index].posY - 120) -
-		    (MAP_TILE_DATA.cameraY - (120 - DRAWING_OFFSET_Y));
+		for (row = 0; row < 3; row++) {
+			if ((MAP_TILE_Y + row) >= MAP_TILE_DATA.height) {
+				break;
+			}
 
-		prim = (WideTilePrim *)GsGetWorkBase();
-		prim->cmd = 0xE7000000 | (uint32_t)index;
-		prim->xy = (uint16_t)x | ((uint32_t)(uint16_t)y << 16);
-		prim->wh = 128 | (128 << 16);
-		/* The map's CLUT as GetClut(0, 480) builds it (the tile data's palette point). */
-		prim->tileClut = 0x7800;
-		setlen(prim, 4);
-		addPrim(&ot[0xfff], prim);
-		GsSetWorkBase((PACKET *)(prim + 1));
+			index = (MAP_TILE_X + column) + (MAP_TILE_Y + row) * MAP_TILE_DATA.width;
+			if ((index < 0) || (index >= WIDE_TILES_MAX)) {
+				continue;
+			}
+			if (MAP_TILES[index] == -1) {
+				/* Black, like the game's empty tiles: the frame's clear already is. */
+				continue;
+			}
+
+			x = (MAP_TILE_DATA.tiles[index].posX - 160) -
+			    (MAP_TILE_DATA.cameraX - (160 - DRAWING_OFFSET_X));
+			y = (MAP_TILE_DATA.tiles[index].posY - 120) -
+			    (MAP_TILE_DATA.cameraY - (120 - DRAWING_OFFSET_Y));
+
+			prim = (WideTilePrim *)GsGetWorkBase();
+			prim->cmd = 0xE7000000 | (uint32_t)index;
+			prim->xy = (uint16_t)x | ((uint32_t)(uint16_t)y << 16);
+			prim->wh = 128 | (128 << 16);
+			/* The map's CLUT as GetClut(0, 480) builds it (the tile data's palette point). */
+			prim->tileClut = 0x7800;
+			setlen(prim, 4);
+			addPrim(&ot[0xfff], prim);
+			GsSetWorkBase((PACKET *)(prim + 1));
+		}
 	}
 }
 #endif

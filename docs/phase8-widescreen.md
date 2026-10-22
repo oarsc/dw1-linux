@@ -114,11 +114,51 @@ column disabled (the same build, the call removed) the left margin is black in t
 is needed; with it, the art continues across the seam. Movie frames keep taking the 1x fallback
 (640x480).
 
+## 2026-10-22 (2): fades, the right margin's missing prims, both columns
+
+- **Fades.** `renderFade` drew one 320x240 quad, so a fade darkened the 4:3 picture and left the
+  margins as bright as the scene behind them (during the map load it was a whole bright column of
+  the wrong picture at the right edge). It now also queues a quad for each margin, at
+  `-160 - margin` and `160`, same texel, tpage (so the same `FADE_MODE` blending), CLUT and
+  `setRGB0(progress)`, added to the same OT entry. They are wholly outside the 1x picture's 320,
+  so the 1x VRAM, the 1x screenshots and the replays see the original single quad. Widening the
+  one quad instead was tried and reverted: the fade's "texture" is a texel stretched over the
+  quad, so stretching it over 426 instead of 320 changes the colours of the picture itself.
+- **`Hd::triangle` dropped every prim wholly in a margin that is not the left one.** Before
+  handing a triangle to the HD surfaces it rejects the ones wholly outside the draw area, and it
+  compared against the game's 1x draw area (the vertex test is `x > clip_x1`). A prim inside the
+  left margin survived by accident (its right edge is at or past x = 0), but one starting at
+  x >= 320 -- the fade's right quad, or an actor or map object that the widened tests had just
+  let through -- never reached the margins at all: the game C drew it and the HD side threw it
+  away. The rejection now widens by `WIDE_MARGIN` on both sides when the margins are on (the
+  rows still stop at the draw area, and `hd_clip` still clips to the surface, so a surface
+  without margins is unaffected).
+- **Both neighbour columns, always.** The game keeps four columns in VRAM from `MAP_TILE_X` and
+  uploads a new one over the slot of the column that just left them. Walking left that slot is
+  the column that left on the *right*, which the wider picture still shows in its right margin;
+  walking right it is the one that left on the left. So which column held the truth depended on
+  the streaming's timing -- the "chunks" popping at the picture's sides. `renderWideMapColumn`
+  now queues the column before `MAP_TILE_X` *and* the one after `MAP_TILE_X + 3`, every frame,
+  from the pixels `setupMap` kept, so the margins no longer depend on the four slots at all.
+  Each is skipped where it cannot show: the left one when it ends at or left of the 4:3 edge
+  (the game's own first column already fills the margin) and at the map's left edge, the right
+  one at the map's right edge.
+
+Checked with `new-game` (shots every 200 vblanks, 1x copies on) and `file-city-walk` (walking
+sideways with NPCs, 71 shots, 1x copies on), render scale 2, `DW1_WIDE=1` against `0`: the 1x
+screenshots and every canonical-state checkpoint are byte-identical in both, and the 852x480
+pictures' centres are identical to the 4:3 pictures in all 44 `new-game` frames and all but two
+`file-city-walk` frames (one pixel, and a 3x8 block, at the very corner: a model the game had
+culled whose geometry pokes into the picture). The fade was measured frame by frame across the
+map load (vblanks 15420-15520): centre, left margin and right margin now darken together
+(0.418 / 0.310 / 0.261 -> 0.251 / 0.100 / 0.064 -> 0.068 / 0.012 / 0.003 -> 0); before the
+rejection fix the right margin stayed at 0.150, the bright column.
+
 Still open, in the order they would show:
 
-- **Full-screen effects** (fades, battle flashes, iris wipes, mist and snow, the pause dim) are
-  320-wide pictures or quads: they leave the margins uncovered. Covering them means drawing their
-  margins on the HD side without running their simulation more (snow uses the shared RNG).
+- **The other full-screen effects** (battle flashes, iris wipes, mist and snow, the pause dim) are
+  still 320-wide pictures or quads: they leave the margins uncovered. Covering them means drawing
+  their margins on the HD side without running their simulation more (snow uses the shared RNG).
 - **Scenes that are 320 wide on purpose** (title screens, menus, movies, and every scene not
   checked yet) stay 4:3 and want the pillarbox the survey recommends per scene.
 - **`isTileOffScreen` and the simulation-side windows** keep their ±200-pixel / 320-wide game

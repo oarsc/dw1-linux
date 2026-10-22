@@ -144,27 +144,56 @@ void renderFadeOut(void)
 void renderFade(uint8_t progress)
 {
 	POLY_FT4 *prim;
+	int32_t margin;
+	int32_t i;
+	int16_t x;
+	int16_t width;
 
-	prim = (POLY_FT4 *)GsGetWorkBase();
+	/* The game's quad covers its 320x240 picture; the widescreen picture is wider, so two more
+	 * quads cover its margins (drawn like the first one, from the same texel and colour). They
+	 * lie outside the 1x picture's 320, so the 1x VRAM never sees them; without widescreen
+	 * dw1_plus_margin() is 0 and the frame is the original one. */
+#ifdef DW1_PLUS
+	margin = dw1_plus_margin();
+#else
+	margin = 0;
+#endif
 
-	SetPolyFT4(prim);
-	SetSemiTrans(prim, 1);
-	prim->tpage = GetTPage(0, FADE_MODE, 896, 448);
-	prim->clut = GetClut(256, 502);
-	setPosDataPolyFT4(prim, -160, -120, 320, 240);
-	setUVDataPolyFT4(prim, 250, 509, 2, 2);
-	
-	setRGB0(prim, progress, progress, progress);
+	for (i = 0; i < 3; i++) {
+		if (i == 0) {
+			x = -160;
+			width = 320;
+		} else if ((margin > 0) && (i == 1)) {
+			x = -160 - margin;
+			width = margin;
+		} else if ((margin > 0) && (i == 2)) {
+			x = 160;
+			width = margin;
+		} else {
+			continue;
+		}
 
-	if (FADE_MODE == 2) {
-		AddPrim(&ACTIVE_ORDERING_TABLE->org[1], prim);
-	} else {
-		AddPrim(&ACTIVE_ORDERING_TABLE->org[10], prim);
+		prim = (POLY_FT4 *)GsGetWorkBase();
+
+		SetPolyFT4(prim);
+		SetSemiTrans(prim, 1);
+		prim->tpage = GetTPage(0, FADE_MODE, 896, 448);
+		prim->clut = GetClut(256, 502);
+		setPosDataPolyFT4(prim, x, -120, width, 240);
+		setUVDataPolyFT4(prim, 250, 509, 2, 2);
+
+		setRGB0(prim, progress, progress, progress);
+
+		if (FADE_MODE == 2) {
+			AddPrim(&ACTIVE_ORDERING_TABLE->org[1], prim);
+		} else {
+			AddPrim(&ACTIVE_ORDERING_TABLE->org[10], prim);
+		}
+
+		prim++;
+
+		GsSetWorkBase((PACKET*)(prim));
 	}
-
-	prim++;
-
-	GsSetWorkBase((PACKET*)(prim));
 }
 
 void fadeToWhite(int16_t frames)
