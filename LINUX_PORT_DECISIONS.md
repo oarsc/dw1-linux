@@ -116,7 +116,7 @@ ELF/Mach-O memory handling and the packaging, with no benefit for this fork. The
 
 **Justification:** Avoids polluting the host system with toolchains, libraries, and compilers specific to the project. Allows reproducibility and cleanliness.
 
-**Consequence:** Two Dockerfiles are used (`Dockerfile` for Arch/main build, `decomp/Dockerfile` for Ubuntu/dw_decomp). Two wrappers run commands inside the container mounting the repo at `/dw1`: `tools/dtb` (distrobox) and `tools/do` (plain docker). `./compile` (through `tools/dtb`) builds the release binary and `./run` runs it.
+**Consequence:** Two Dockerfiles are used (`Dockerfile` for Arch/main build, `decomp/Dockerfile` for Ubuntu/dw_decomp). Two wrappers run commands inside the container mounting the repo at `/dw1`: `tools/do` (plain docker) and `tools/dtb` (distrobox). `./compile` (through `tools/do`) builds the release binary and `./run` runs it.
 
 ---
 
@@ -132,11 +132,11 @@ ELF/Mach-O memory handling and the packaging, with no benefit for this fork. The
 
 ## D13. Build script in `tools/build-linux.sh`
 
-**Decision:** Provide `tools/build-linux.sh` as Linux build script, executed inside the Docker container (via `tools/dtb` or `./compile`).
+**Decision:** Provide `tools/build-linux.sh` as Linux build script, executed inside the Docker container via `tools/do` or `./compile`.
 
 **Justification:** Provides a consistent interface to compile, configures CMake from `.venv` if not in PATH, and produces a plain binary instead of a macOS `.app` package.
 
-**Consequence:** The script runs inside the container (WORKDIR=/dw1), not on the host. It is invoked as `./compile` (which runs it through `tools/dtb`), or directly with `tools/dtb tools/build-linux.sh`.
+**Consequence:** The script runs inside the container (WORKDIR=/dw1), not on the host. It is invoked as `./compile` (which runs it through `tools/do`), or directly with `tools/do tools/build-linux.sh`.
 
 ---
 ## D14. Edit dw_decomp C for mods and corrections

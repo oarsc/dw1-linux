@@ -159,8 +159,7 @@ Running as the invoking user keeps `target/` (a bind mount) owned by that user i
 `root`. Old root-owned build trees can be fixed once with
 `docker run --rm -v "$PWD:/dw1" dw1-builder chown -R "$(id -u):$(id -g)" /dw1/target`.
 
-`tools/dtb` (distrobox) does not need the volume: the container shares the host `$HOME`, so
-it uses the host's `~/.cargo`.
+`tools/do` is the default wrapper for running commands in Docker.
 
 ---
 

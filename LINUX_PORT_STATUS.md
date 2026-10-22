@@ -62,12 +62,12 @@ PCSX-Redux oracle on Linux, and testing `tools/make-linux.sh --install`.
    gitignored oracle dumps (`captures/oracle-runs/`) and fixture cards (`captures/fixtures/`),
    which are not present in a fresh checkout:
    ```bash
-   tools/dtb tools/replay-check.sh        # or: tools/replay-check.sh, on a host with deps
-   tools/dtb tools/replay-check.sh new-game file-city-walk   # a subset
+   tools/do tools/replay-check.sh        # or: tools/replay-check.sh, on a host with deps
+   tools/do tools/replay-check.sh new-game file-city-walk   # a subset
    ```
 2. Optionally package/install for Linux (installs to /usr/local):
    ```bash
-   tools/dtb tools/make-linux.sh --install
+   tools/do tools/make-linux.sh --install
    ```
 3. Continue modding: edit `decomp/src/` (or `decomp/text/`), rebuild and test:
    ```bash

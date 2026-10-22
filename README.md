@@ -109,24 +109,12 @@ This builds and tags the image as `dw1-builder`. You only need to do this once (
 build inside it does not have to download crates. Rebuild the image after adding a dependency
 if you want it prefetched; otherwise cargo simply fetches the new crate on the next build.
 
-Then do:
-
-```bash
-./tools/dtb
-```
-
-To create the container distrobox will work on.
-
 ### 5. Compile the game for Linux
 
-Make the build script executable, then run it inside the Docker container:
+Make the build script executable, then run it inside the Docker container with any of:
 
 ```bash
-# Using distrobox
 ./compile
-./tools/dtb tools/build-linux.sh
-
-# Using docker directly
 ./tools/do tools/build-linux.sh
 ```
 
@@ -169,14 +157,10 @@ disc/Digimon World (USA).cue
 disc/Digimon World (USA).bin
 ```
 
-Then run:
+Then run any of:
 
 ```bash
-# Using distrobox
 ./run
-./tools/dtb /dw1/target/release/dw1
-
-# Using host directly
 ./target/release/dw1
 ```
 
@@ -247,14 +231,14 @@ dw1-linux/
 ├── decomp/Dockerfile   # Ubuntu image with MIPS toolchain for dw_decomp
 ├── disc/               # Gitignored: your legal .cue/.bin game disc
 ├── tools/
-│   ├── build-linux.sh  # Linux build script (run via ./do)
+│   ├── build-linux.sh  # Linux build script
 │   ├── make-linux.sh   # Linux packaging script (build + --install)
 │   ├── do              # Docker wrapper (build image / run commands)
 │   └── dtb             # Distrobox wrapper (build container / run commands)
 ├── crates/             # Rust code (window, GPU, audio, PS1 SDK, etc.)
 ├── docs/               # Port plan and phase documents (phase*-plan.md, s0*-*.md)
-├── compile             # Quick compilation of the code using Distrobox
-├── run                 # Quick execution of the compiled using Distrobox
+├── compile             # Quick compilation of the code using Docker
+├── run                 # Quick execution of the compiled game
 ├── AGENTS.md           # Context for AI agents
 ├── LINUX_PORT_STATUS.md           # Phase progress checklist
 └── LINUX_PORT_DECISIONS.md        # Design decisions made
