@@ -24,6 +24,12 @@ extern uint8_t TAMER_MODEL_BUFFER[];
 #endif
 
 extern GsOT *ACTIVE_ORDERING_TABLE;
+#ifdef DW1_PLUS
+/* The widescreen's draw-only wide test reads these (`renderDigimon`). */
+extern int8_t GAME_STATE;
+extern int32_t IS_IN_MENU;
+int32_t entityIsOffScreen(Entity *entity, int32_t width, int32_t height);
+#endif
 void renderDropShadow(Entity *entity);
 void setRotTransMatrix(MATRIX *m);
 int32_t addScreenPolyFT4(POLY_FT4 *poly, SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECTOR *v3);
@@ -2896,7 +2902,20 @@ void renderDigimon(instanceId)
 			return;
 		}
 		if (ENTITY_TABLE[instanceId]->isOnScreen == 0) {
+#ifdef DW1_PLUS
+			/* The widescreen picture is wider than the 320 the game culls against, so an
+			 * entity the game dropped can still be inside the widened view. Draw it then,
+			 * but only in the overworld: menus and scenes hide entities on purpose, and the
+			 * 4:3 retest keeps those apart from the ones culled for being off-screen. */
+			if ((dw1_plus_margin() == 0) || (GAME_STATE != 0) || (IS_IN_MENU != 0) ||
+			    (entityIsOffScreen(ENTITY_TABLE[instanceId], 0x140, 0xf0) == 0) ||
+			    (entityIsOffScreen(ENTITY_TABLE[instanceId],
+			                       0x140 + 2 * dw1_plus_margin(), 0xf0) != 0)) {
+				return;
+			}
+#else
 			return;
+#endif
 		}
 	}
 	pos = ENTITY_TABLE[instanceId]->posData;

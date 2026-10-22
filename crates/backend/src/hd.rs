@@ -31,6 +31,8 @@
 
 use crate::gpu::{DITHER_TBL, H_MASK, State, Tex, VRAM_H, VRAM_W, Vtx, W_MASK, line_walk, to5};
 
+use std::sync::Arc;
+
 /// Fraction bits of the fixed-point surface positions.
 const SUB: u32 = 4;
 /// Most surfaces kept (the game has two buffers).
@@ -133,6 +135,8 @@ struct RectCmd {
     w: i32,
     h: i32,
     tex: Option<Tex>,
+    /// A tile from RAM instead of the VRAM (the widescreen's extra map tile): see `NativeTex`.
+    native: Option<NativeTex>,
     u0: i32,
     v0: i32,
     r: i32,
@@ -140,6 +144,18 @@ struct RectCmd {
     b: i32,
     semi: bool,
     abr: i32,
+}
+
+/// A rectangle textured from an 8-bit buffer in RAM rather than a VRAM texture page (a
+/// widescreen extra map tile, which has no free VRAM slot). `px` is `w * h` texels, row-major;
+/// texel `(u, v)` is the CLUT entry `px[v * w + u]` at the point `tex.cx, tex.cy` in the 1x VRAM,
+/// sampled when the queue is drawn (so the day/night CLUT transition applies). The rest of
+/// `tex` only supplies the shading rules; `raw` stays false, as the tile's 0x80 modulation is.
+struct NativeTex {
+    px: Arc<[u8]>,
+    w: i32,
+    h: i32,
+    tex: Tex,
 }
 
 struct LineCmd {
@@ -641,6 +657,7 @@ impl Hd {
                 w,
                 h,
                 tex: tex.copied(),
+                native: None,
                 u0,
                 v0,
                 r,
@@ -648,6 +665,63 @@ impl Hd {
                 b,
                 semi,
                 abr,
+            }),
+        );
+    }
+
+    /// A rectangle textured from an 8-bit buffer in RAM, HD only (`Gpu::plus_tile`): the
+    /// widescreen's extra map tile, which lies outside the 1x picture. `px` is `w * h` texels and
+    /// `clut` the VRAM point of their palette.
+    pub(crate) fn native_rect(
+        &mut self,
+        vram: &[u16],
+        st: &State,
+        (x0, y0, w, h): (i32, i32, i32, i32),
+        (cx, cy): (i32, i32),
+        px: &[u8],
+    ) {
+        if w <= 0 || h <= 0 || px.len() < (w as usize) * (h as usize) {
+            return;
+        }
+        let Some(geo) = self.target(vram, st) else {
+            return;
+        };
+        // Only the widescreen margin is wanted: nothing when the rectangle ends at or before the
+        // 4:3 picture's left edge (then the game's own columns already fill it, and drawing over
+        // them could only differ in a transition).
+        if x0 + w <= geo.x - geo.mx {
+            return;
+        }
+        self.push(
+            vram,
+            geo,
+            st,
+            Kind::Rect(RectCmd {
+                x0,
+                y0,
+                w,
+                h,
+                tex: None,
+                native: Some(NativeTex {
+                    px: Arc::from(px),
+                    w,
+                    h,
+                    tex: Tex {
+                        mode: 1,
+                        tx: 0,
+                        ty: 0,
+                        cx,
+                        cy,
+                        raw: false,
+                    },
+                }),
+                u0: 0,
+                v0: 0,
+                r: 0x80,
+                g: 0x80,
+                b: 0x80,
+                semi: false,
+                abr: 0,
             }),
         );
     }
@@ -903,6 +977,17 @@ fn texel(st: &State, vram: &[u16], t: &Tex, u: i32, v: i32) -> u16 {
         }
         _ => at(t.tx + u, y),
     }) as u16
+}
+
+/// The texel at u, v of a `NativeTex`: the tile's byte selects the CLUT entry at the live VRAM
+/// point (outside the tile is transparent, as texel 0 is).
+fn native_texel(vram: &[u16], n: &NativeTex, u: i32, v: i32) -> u16 {
+    if u < 0 || v < 0 || u >= n.w || v >= n.h {
+        return 0;
+    }
+    let index = n.px[(v * n.w + u) as usize] as i32;
+    let y = n.tex.cy & H_MASK;
+    vram[(y as usize) * VRAM_W + ((n.tex.cx + index) & W_MASK) as usize]
 }
 
 /// Writes one pixel (r, g, b in 0..31, or out of range when blending follows); the PS1 rules of
@@ -1778,19 +1863,27 @@ fn draw_rect(p: &mut Part, vram: &[u16], c: &Cmd, r: &RectCmd) {
         let row = p.row(g.si, row_y);
         let mut texel_c = 0i32;
         let mut x = xs;
+        let native = r.native.as_ref();
         while x <= xe {
             // one 1x pixel's columns at a time (the whole row when untextured)
-            let run = if r.tex.is_none() {
+            let run = if r.tex.is_none() && native.is_none() {
                 xe - x + 1
             } else {
                 (scale - x % scale).min(xe - x + 1)
             };
+            let xx = x / scale - g.mx + g.x - r.x0;
             if let Some(t) = r.tex.as_ref() {
-                let xx = x / scale - g.mx + g.x - r.x0;
                 let u = if st.flip_x { r.u0 - xx } else { r.u0 + xx };
                 texel_c = texel(st, vram, t, u, tv) as i32;
+            } else if let Some(n) = native {
+                let u = if st.flip_x { r.u0 - xx } else { r.u0 + xx };
+                texel_c = native_texel(vram, n, u, tv) as i32;
             }
-            let tc = r.tex.as_ref().map(|t| (t, texel_c));
+            let tc = match (r.tex.as_ref(), native) {
+                (Some(t), _) => Some((t, texel_c)),
+                (None, Some(n)) => Some((&n.tex, texel_c)),
+                (None, None) => None,
+            };
             let at = x as usize;
             match direct(full, st, tc, (r.r, r.g, r.b), r.semi, false, 0) {
                 Some(Some(val)) => row[at..at + run as usize].fill(val),

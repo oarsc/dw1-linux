@@ -1256,6 +1256,21 @@ impl Gpu {
         self.hd.as_ref().map_or(0, |h| h.flush_ns)
     }
 
+    /// A rectangle textured from `w * h` 8-bit texels in RAM instead of the VRAM (`px`), with the
+    /// palette at the VRAM point `clut`: the widescreen's extra map tile (`DW1_PLUS`, decomp
+    /// map.c), which lies outside the game's 320-wide draw area and so has no VRAM slot. The
+    /// texels are sampled when the queue is drawn, like a textured rectangle's. `x0`/`y0` are
+    /// what a primitive carries: the drawing offset is added as for any primitive. HD surfaces
+    /// only (nothing at 1x), and the 1x VRAM is not written.
+    pub fn plus_tile(&mut self, x0: i32, y0: i32, w: i32, h: i32, clut: (i32, i32), px: &[u8]) {
+        let st = self.st;
+        let (x0, y0) = (x0 + st.ofs_x, y0 + st.ofs_y);
+        let vram: &[u16] = &self.vram;
+        if let Some(hd) = self.hd.as_deref_mut() {
+            hd.native_rect(vram, &st, (x0, y0, w, h), clut, px);
+        }
+    }
+
     /// Full colour (an addition, HD surfaces only): shading and blending on 8 bits a channel,
     /// without the PS1's cut to 15 bits and its dither. The 1x VRAM is the same either way.
     pub fn set_full_colour(&mut self, on: bool) {

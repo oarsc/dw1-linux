@@ -2781,6 +2781,27 @@ int8_t MAP_TILE_X;
 int8_t PREV_TILE_X;
 int8_t MAP_TILE_Y;
 int8_t PREV_TILE_Y;
+#ifdef DW1_PLUS
+/* Most tiles a map has (MAP_TILES[35]), and the bytes of one 128x128 8-bit tile. */
+#define WIDE_TILES_MAX 35
+#define WIDE_TILE_BYTES (128 * 128)
+/* The map's tile pixels, copied out of GENERAL_BUFFER_PTR by setupMap: battles and sound
+ * loading overwrite the game's copy, but the widescreen's extra column is drawn for as long as
+ * the map is up. */
+static uint8_t WIDE_TILE_PIXELS[WIDE_TILES_MAX * WIDE_TILE_BYTES];
+/* One extra widescreen map tile, queued like a primitive but taken by the native GPU's
+ * draw_chain as a widescreen addition (crates/psyq/src/gpu.rs, DW1_PLUS_TILE_OP). The words are
+ * laid out as draw_chain reads them: the tag first (setlen and addPrim write its length and
+ * link), then the body. P_TAG is eight bytes (its second word is the colour and code of a real
+ * primitive), so the fields are plain words here: nothing ever sends this packet to a GPU. */
+typedef struct {
+	uint32_t tag;
+	uint32_t cmd;
+	uint32_t xy;
+	uint32_t wh;
+	uint32_t tileClut;
+} WideTilePrim;
+#endif
 int32_t CAMERA_FOLLOW_PLAYER;
 int16_t CAMERA_X_PREVIOUS;
 int16_t CAMERA_Y_PREVIOUS;
@@ -3950,6 +3971,61 @@ void initializeMap(void)
 	SKIP_DAYTIME_TRANSITION = 0;
 }
 
+#ifdef DW1_PLUS
+/* Widescreen: the map column just left of the four the game keeps in VRAM. Those start at
+ * MAP_TILE_X, normally well left of the picture's 4:3 edge, but the camera can bring that edge
+ * past the first column's right edge: the column before it is then needed, and it has no VRAM
+ * slot (four are cached), so it is drawn on the HD surfaces from the pixels setupMap kept. The
+ * position is setPosDataMapTile's, so the HD path places it exactly where the game puts its own
+ * tiles (it adds the GPU's drawing offset to both); the 1x picture and the game's own tiles,
+ * flags and state are untouched, and at 1x or with widescreen off dw1_plus_margin() is 0 and
+ * nothing is queued. */
+void renderWideMapColumn(GsOT_TAG *ot)
+{
+	WideTilePrim *prim;
+	int32_t margin;
+	int32_t index;
+	int32_t row;
+	int16_t x;
+	int16_t y;
+
+	margin = dw1_plus_margin();
+	if ((margin == 0) || (MAP_TILE_X < 1)) {
+		return;
+	}
+
+	for (row = 0; row < 3; row++) {
+		if ((MAP_TILE_Y + row) >= MAP_TILE_DATA.height) {
+			break;
+		}
+
+		index = (MAP_TILE_X - 1) + (MAP_TILE_Y + row) * MAP_TILE_DATA.width;
+		if ((index < 0) || (index >= WIDE_TILES_MAX)) {
+			continue;
+		}
+		if (MAP_TILES[index] == -1) {
+			/* Black, like the game's empty tiles: the frame's clear already is. */
+			continue;
+		}
+
+		x = (MAP_TILE_DATA.tiles[index].posX - 160) -
+		    (MAP_TILE_DATA.cameraX - (160 - DRAWING_OFFSET_X));
+		y = (MAP_TILE_DATA.tiles[index].posY - 120) -
+		    (MAP_TILE_DATA.cameraY - (120 - DRAWING_OFFSET_Y));
+
+		prim = (WideTilePrim *)GsGetWorkBase();
+		prim->cmd = 0xE7000000 | (uint32_t)index;
+		prim->xy = (uint16_t)x | ((uint32_t)(uint16_t)y << 16);
+		prim->wh = 128 | (128 << 16);
+		/* The map's CLUT as GetClut(0, 480) builds it (the tile data's palette point). */
+		prim->tileClut = 0x7800;
+		setlen(prim, 4);
+		addPrim(&ot[0xfff], prim);
+		GsSetWorkBase((PACKET *)(prim + 1));
+	}
+}
+#endif
+
 void renderMap(int32_t arg0)
 {
 	POLY_FT4 *prim;
@@ -4013,6 +4089,10 @@ void renderMap(int32_t arg0)
 			GsSetWorkBase((PACKET *)prim);
 		}
 	}
+
+#ifdef DW1_PLUS
+	renderWideMapColumn(ot);
+#endif
 
 	renderMapOverlays(MAP_TILE_DATA.objects,
 			  MAP_TILE_DATA.cameraX, MAP_TILE_DATA.cameraY);
@@ -4234,6 +4314,9 @@ void setupMap(void)
 	int32_t y;
 	int32_t i;
 	int16_t numCluts;
+#ifdef DW1_PLUS
+	uint8_t *wideTile;
+#endif
 
 	data = (u_long *)GENERAL_BUFFER_PTR;
 	data++;
@@ -4265,6 +4348,9 @@ void setupMap(void)
 
 	updateTimeOfDay();
 
+#ifdef DW1_PLUS
+	wideTile = WIDE_TILE_PIXELS;
+#endif
 	tile = MAP_TILE_DATA.tiles;
 	for (y = 0; y < MAP_TILE_DATA.height; y++) {
 		for (x = 0; x < MAP_TILE_DATA.width; x++) {
@@ -4273,16 +4359,30 @@ void setupMap(void)
 				fillTileData(tile, (uint8_t *)NULL,
 					     x % 4 * 64 + 768, y % 3 * 128,
 					     x * 128, y * 128);
+#ifdef DW1_PLUS
+				memset((uint8_t *)wideTile, 0, WIDE_TILE_BYTES);
+#endif
 			} else {
 				data++;
 				fillTileData(tile, (uint8_t *)data,
 					     x % 4 * 64 + 768, y % 3 * 128,
 					     x * 128, y * 128);
+#ifdef DW1_PLUS
+				/* The pixels as uploaded: 128 bytes a row, so the extra column can be
+				 * drawn without a fifth VRAM slot (there is none). */
+				memcpy((uint8_t *)wideTile, (uint8_t *)data, WIDE_TILE_BYTES);
+#endif
 				data += 4096;
 			}
+#ifdef DW1_PLUS
+			wideTile += WIDE_TILE_BYTES;
+#endif
 			tile++;
 		}
 	}
+#ifdef DW1_PLUS
+	dw1_plus_set_tile_pixels(WIDE_TILE_PIXELS);
+#endif
 
 	MAP_TILE_DATA.cameraX = ((MAP_TILE_DATA.width * 128) / 2) - 160;
 	MAP_TILE_DATA.cameraY = ((MAP_TILE_DATA.height * 128) / 2) - 120;

@@ -73,3 +73,54 @@ picture's centre 640x480 is identical to the 4:3 HD picture, and movie frames (w
 1x fallback) stay 640x480. So the game and the 1x VRAM don't notice it, and the margins only
 add pixels at the sides. In the window, `DW1_WINDOW_LOG=1` shows the display switching between
 640x480 (4:3 scenes) and 852x480 (the margins) by itself.
+
+## 2026-10-22: the 5th tile column and the pre-culled actors
+
+The two things the prototype left black or missing at the picture's sides, fixed without changing
+a single number the game computes. All of it is under `DW1_PLUS` (native build only, so the PS1
+and the oracle replays run the vanilla game) and all of it reads `dw1_plus_margin()` at run time
+(0 with the margins off or at render scale 1, `WIDE_MARGIN` = 53 with them on), so F10 turns the
+whole thing on and off.
+
+- **The extra map column.** The game keeps four 128x128 columns in VRAM and draws those, starting
+  at `MAP_TILE_X`; normally the first one starts well left of the picture, but the camera brings
+  the 4:3 edge past its right edge now and then (the column to its left is then the one the
+  picture needs, and it was never cached). `setupMap` copies the map's tile pixels out of
+  `GENERAL_BUFFER_PTR` (the game's copy is reused by battles and sound loading) and `renderMap`
+  queues the column before `MAP_TILE_X` as a private `0xE7` packet at `ot[0xfff]`, at the
+  position `setPosDataMapTile` gives the game's own tiles. `psyq::gpu::draw_chain` takes that
+  opcode (the 1x picture and the command-boundary accounting never see it) and `Gpu::plus_tile`
+  -> `Hd::native_rect` draws it on the HD surfaces only, texel by texel from RAM, through the live
+  VRAM CLUT at (0, 480) so the day/night transition applies. `Hd::native_rect` drops it when it
+  ends at or left of the 4:3 edge. Only the left column is ever needed: the four cached ones
+  always cover the right margin.
+  - The packet is five words, `tag, cmd, xy, wh, clut`, as plain `uint32_t`s: `P_TAG` is *eight*
+    bytes (its second word is a real primitive's colour and code), so a `P_TAG tag;` field would
+    shift the body by one word.
+  - The position is a primitive's, not a screen coordinate: `Gpu::plus_tile` adds the GPU's
+    drawing offset, exactly as `Gpu::rectangle` does for the game's own tiles.
+- **Actors the game pre-culled.** The game's 320x240 tests decide what to draw and also feed the
+  simulation (`isOnScreen`, battle joins, AI, scripts), so they are untouched. Instead the three
+  draw-only tests retest against the widened picture: `renderDigimon` (only in the overworld --
+  `GAME_STATE == 0`, not in a menu -- and only when the entity is off the 4:3 view but inside the
+  widened one), `renderMapOverlays`' horizontal window, and `isBoxOffScreen`'s corner test
+  (320 + 2 * margin). Nothing is added to the game's state, its flags, its RNG or the 1x VRAM.
+
+Checked with the `new-game` replay (headless, render scale 2, `DW1_WIDE=1` against `0`, shots
+every 1000 vblanks with the 1x copies): the 1x screenshots and every canonical-state checkpoint
+are byte-identical, and each 852x480 picture's centre 640x480 is still identical to the 4:3 HD
+picture (`max` pixel difference 0), so the additions are margin pixels and nothing else. With the
+column disabled (the same build, the call removed) the left margin is black in the frames where it
+is needed; with it, the art continues across the seam. Movie frames keep taking the 1x fallback
+(640x480).
+
+Still open, in the order they would show:
+
+- **Full-screen effects** (fades, battle flashes, iris wipes, mist and snow, the pause dim) are
+  320-wide pictures or quads: they leave the margins uncovered. Covering them means drawing their
+  margins on the HD side without running their simulation more (snow uses the shared RNG).
+- **Scenes that are 320 wide on purpose** (title screens, menus, movies, and every scene not
+  checked yet) stay 4:3 and want the pillarbox the survey recommends per scene.
+- **`isTileOffScreen` and the simulation-side windows** keep their ±200-pixel / 320-wide game
+  meaning by design, so an actor that the game has stopped ticking (or that a script has not
+  spawned) still appears or disappears at the 4:3 edge; only what the game draws was widened.

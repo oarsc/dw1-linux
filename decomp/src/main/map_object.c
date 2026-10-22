@@ -1058,7 +1058,13 @@ int32_t isBoxOffScreen(VECTOR *position, int16_t width, int16_t height)
 			gte_ldv0(&corner);
 			gte_rtps();
 			gte_stsxy((long *)&screen);
+#ifdef DW1_PLUS
+			/* The widescreen picture is wider than the game's 320: an object whose box is
+			 * only outside the 4:3 view but still inside the widened one must be drawn. */
+			if (isOffScreen(&screen, 320 + 2 * dw1_plus_margin(), 240) == 0) {
+#else
 			if (isOffScreen(&screen, 320, 240) == 0) {
+#endif
 				return 0;
 			}
 		}
