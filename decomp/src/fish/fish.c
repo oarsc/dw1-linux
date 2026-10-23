@@ -2954,8 +2954,8 @@ void FISH_tickFishPopulation(void)
 				total++;
 			}
 			for (i = 0; i < 6U; i++) {
-				counts[i] = counts[i] * 10000 /
-				            (total * FISHING_DATA_PTR->mapData->fishingSpots[i].unk0);
+				counts[i] = DW1_DIV(counts[i] * 10000,
+				                    total * FISHING_DATA_PTR->mapData->fishingSpots[i].unk0);
 			}
 			bestIdx = 0;
 			best = 0x2711;
