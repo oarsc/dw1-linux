@@ -154,6 +154,26 @@ map load (vblanks 15420-15520): centre, left margin and right margin now darken 
 (0.418 / 0.310 / 0.261 -> 0.251 / 0.100 / 0.064 -> 0.068 / 0.012 / 0.003 -> 0); before the
 rejection fix the right margin stayed at 0.150, the bright column.
 
+### The blink as an actor reaches the 4:3 edge
+
+Reported in play: an actor in the margins blinks once as it comes back into the 4:3 picture.
+The gate above first retested the 4:3 box as well (draw only if `isOnScreen == 0` *and* the 4:3
+test now says off). That test is a step behind what is drawn: the renderer interpolates entity
+positions per output frame, `isOnScreen` is the last simulation step's 320x240 test, and the
+gate's own `entityIsOffScreen` call projects the interpolated position. So for one output frame
+the two disagree -- `isOnScreen == 0` (the step says off) but the drawn position is inside the
+4:3 box -- and the gate returned, while the game's own draw was already skipped: the model
+vanished for that frame.
+
+Traced with a temporary `dw1_plus_trace` over `file-city-walk` (one line per entity reaching the
+test, per output frame): 1422 culled entity-frames, 54 of them drawn by the gate, and exactly
+one of them was that disagreement (`isOnScreen == 0`, 4:3 test on, widened test on) -- one
+blink, right where the actor enters the picture. The 4:3 retest is now gone: with
+`isOnScreen == 0` the widened test alone decides, which is what the game means in the overworld
+(the only other writer of 0 is the menus, which the `GAME_STATE`/`IS_IN_MENU` guard excludes).
+Same trace after: no blink, the same 54 frames still drawn by the gate, and the centre and 1x
+comparisons above unchanged.
+
 Still open, in the order they would show:
 
 - **The other full-screen effects** (battle flashes, iris wipes, mist and snow, the pause dim) are

@@ -2904,11 +2904,15 @@ void renderDigimon(instanceId)
 		if (ENTITY_TABLE[instanceId]->isOnScreen == 0) {
 #ifdef DW1_PLUS
 			/* The widescreen picture is wider than the 320 the game culls against, so an
-			 * entity the game dropped can still be inside the widened view. Draw it then,
-			 * but only in the overworld: menus and scenes hide entities on purpose, and the
-			 * 4:3 retest keeps those apart from the ones culled for being off-screen. */
+			 * entity the game dropped can still be inside the widened view: draw it then.
+			 * In the overworld isOnScreen == 0 is only ever the game's own 320x240 test
+			 * (menus write it too, hence the GAME_STATE guard), and that test is a step
+			 * behind what is drawn: the renderer interpolates, and isOnScreen comes from
+			 * the last step. Retesting the 4:3 box here as well would then drop the model
+			 * for the one frame where the test says off and the drawn position says on --
+			 * a blink as an entity reaches the 4:3 edge -- so only the widened test is
+			 * used. */
 			if ((dw1_plus_margin() == 0) || (GAME_STATE != 0) || (IS_IN_MENU != 0) ||
-			    (entityIsOffScreen(ENTITY_TABLE[instanceId], 0x140, 0xf0) == 0) ||
 			    (entityIsOffScreen(ENTITY_TABLE[instanceId],
 			                       0x140 + 2 * dw1_plus_margin(), 0xf0) != 0)) {
 				return;
