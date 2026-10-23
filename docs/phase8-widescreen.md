@@ -243,3 +243,12 @@ Still open, in the order they would show:
 - **`isTileOffScreen` and the simulation-side windows** keep their ±200-pixel / 320-wide game
   meaning by design, so an actor that the game has stopped ticking (or that a script has not
   spawned) still appears or disappears at the 4:3 edge; only what the game draws was widened.
+
+## 2026-10-23: map-edge camera limits
+
+With widescreen active, maps at least 426 pixels wide now clamp the camera to
+`53..mapWidth-373`, so their real left/right boundaries reach the widescreen picture edge when
+the camera stops. The game keeps its original 320-pixel camera limits when F10 is off, the HD
+picture is unavailable, or a map is narrower than the widescreen picture (the 384-pixel maps
+cannot fill 426 pixels). The X draw-offset limits are recalculated during camera updates, so F10
+can still be toggled while a map is loaded.

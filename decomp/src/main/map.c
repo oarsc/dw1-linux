@@ -2813,6 +2813,48 @@ int16_t CAMERA_MOVE_FINAL_X;
 int16_t CAMERA_MOVE_FINAL_Y;
 int8_t CAMERA_MOVE_DELTA_X;
 int8_t CAMERA_MOVE_DELTA_Y;
+
+#ifdef DW1_PLUS
+/* The wide picture extends this far beyond the original 320-pixel camera view on either side.
+ * Keep the original camera bounds when widescreen is off or when this map cannot fill the wide
+ * view; otherwise stop at the point where a map edge reaches the edge of the picture. */
+static int32_t mapCameraXMargin(void)
+{
+	int32_t margin;
+	int32_t mapWidth;
+
+	margin = dw1_plus_margin();
+	mapWidth = MAP_TILE_DATA.width * 128;
+	if ((mapWidth < (320 + (margin * 2))) || (margin < 0)) {
+		margin = 0;
+	}
+	return margin;
+}
+
+static int32_t mapCameraXMin(void)
+{
+	return mapCameraXMargin();
+}
+
+static int32_t mapCameraXMax(void)
+{
+	return (MAP_TILE_DATA.width * 128) - 320 - mapCameraXMargin();
+}
+
+static void updateMapCameraXLimits(void)
+{
+	int32_t margin;
+	int32_t mapWidth;
+	int32_t offsetMax;
+
+	margin = mapCameraXMargin();
+	mapWidth = MAP_TILE_DATA.width * 128;
+	offsetMax = (mapWidth / 2) - margin;
+	DRAW_OFFSET_LIMIT_X_MAX = offsetMax;
+	DRAW_OFFSET_LIMIT_X_MIN = -(mapWidth - 320 - (margin * 2) - offsetMax);
+}
+#endif
+
 int16_t SCRIPT_MAP_CHANGE_STATE;
 uint8_t TARGET_MAP;
 int8_t TRN_LOADING_COMPLETE;
@@ -4397,8 +4439,12 @@ void setupMap(void)
 
 	MAP_TILE_DATA.cameraX = ((MAP_TILE_DATA.width * 128) / 2) - 160;
 	MAP_TILE_DATA.cameraY = ((MAP_TILE_DATA.height * 128) / 2) - 120;
+#ifdef DW1_PLUS
+	updateMapCameraXLimits();
+#else
 	DRAW_OFFSET_LIMIT_X_MAX = MAP_TILE_DATA.cameraX + 160;
 	DRAW_OFFSET_LIMIT_X_MIN = -(MAP_TILE_DATA.width * 128 - 320 - DRAW_OFFSET_LIMIT_X_MAX);
+#endif
 	DRAW_OFFSET_LIMIT_Y_MAX = MAP_TILE_DATA.cameraY + 120;
 	DRAW_OFFSET_LIMIT_Y_MIN = -(MAP_TILE_DATA.height * 128 - 240 - DRAW_OFFSET_LIMIT_Y_MAX);
 	PLAYER_OFFSET_X = DRAWING_OFFSET_X = 160;
@@ -4491,6 +4537,10 @@ void initializeDrawingOffsets(MapTileData *tiles)
 	SVECTOR tamerPos;
 	SVECTOR viewScreen;
 	SVECTOR tamerScreen;
+#ifdef DW1_PLUS
+	int32_t cameraMinX;
+	int32_t cameraMaxX;
+#endif
 
 	SetRotMatrix(&GsWSMATRIX);
 	SetTransMatrix(&GsWSMATRIX);
@@ -4511,6 +4561,18 @@ void initializeDrawingOffsets(MapTileData *tiles)
 	PLAYER_OFFSET_X += viewScreen.vx - tamerScreen.vx;
 	PLAYER_OFFSET_Y += viewScreen.vy - tamerScreen.vy;
 
+#ifdef DW1_PLUS
+	updateMapCameraXLimits();
+	cameraMinX = mapCameraXMin();
+	cameraMaxX = mapCameraXMax();
+	if (MAP_TILE_DATA.cameraX < cameraMinX) {
+		MAP_TILE_DATA.cameraX = cameraMinX;
+		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MAX;
+	} else if (MAP_TILE_DATA.cameraX > cameraMaxX) {
+		MAP_TILE_DATA.cameraX = cameraMaxX;
+		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MIN;
+	}
+#else
 	if (MAP_TILE_DATA.cameraX < 0) {
 		MAP_TILE_DATA.cameraX = 0;
 		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MAX;
@@ -4518,6 +4580,7 @@ void initializeDrawingOffsets(MapTileData *tiles)
 		MAP_TILE_DATA.cameraX = (MAP_TILE_DATA.width * 128) - 320;
 		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MIN;
 	}
+#endif
 
 	if (MAP_TILE_DATA.cameraY < 0) {
 		MAP_TILE_DATA.cameraY = 0;
@@ -4935,7 +4998,11 @@ void handleTileUpdate(int32_t input, int32_t force)
 				MAP_TILE_X = 1;
 			}
 
+#ifdef DW1_PLUS
+			if (MAP_TILE_DATA.cameraX >= mapCameraXMax()) {
+#else
 			if (MAP_TILE_DATA.cameraX >= ((MAP_TILE_DATA.width * 128) - 320)) {
+#endif
 				MAP_TILE_X = MAP_TILE_DATA.width - 4;
 				if (MAP_TILE_X < 0) {
 					MAP_TILE_X = 0;
@@ -4955,8 +5022,27 @@ void handleTileUpdate(int32_t input, int32_t force)
 
 void cameraIsAtEdge(int32_t *outX, int32_t *outY)
 {
-	*outX = *outY = 1;
+#ifdef DW1_PLUS
+	int32_t cameraMinX;
+	int32_t cameraMaxX;
+#endif
 
+	*outX = *outY = 1;
+#ifdef DW1_PLUS
+	updateMapCameraXLimits();
+	cameraMinX = mapCameraXMin();
+	cameraMaxX = mapCameraXMax();
+
+	if (MAP_TILE_DATA.cameraX < cameraMinX) {
+		MAP_TILE_DATA.cameraX = cameraMinX;
+		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MAX;
+		*outX = 0;
+	} else if (MAP_TILE_DATA.cameraX > cameraMaxX) {
+		MAP_TILE_DATA.cameraX = cameraMaxX;
+		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MIN;
+		*outX = 0;
+	}
+#else
 	if (MAP_TILE_DATA.cameraX < 0) {
 		MAP_TILE_DATA.cameraX = 0;
 		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MAX;
@@ -4966,6 +5052,7 @@ void cameraIsAtEdge(int32_t *outX, int32_t *outY)
 		DRAWING_OFFSET_X = DRAW_OFFSET_LIMIT_X_MIN;
 		*outX = 0;
 	}
+#endif
 
 	if (MAP_TILE_DATA.cameraY < 0) {
 		MAP_TILE_DATA.cameraY = 0;
@@ -5007,6 +5094,9 @@ void tickCameraMovement(instanceId)
 	int16_t oldCameraX;
 	int16_t oldCameraY;
 	uint32_t flags;
+#ifdef DW1_PLUS
+	updateMapCameraXLimits();
+#endif
 
 	if (CAMERA_HAS_TARGET == 0) {
 		SetRotMatrix(&GsWSMATRIX);
