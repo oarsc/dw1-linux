@@ -1073,6 +1073,15 @@ void BTL_renderPartnerStatusBars(int16_t idx)
 			cur = PARTNER_ENTITY.digimonEntity.stats.current.currentMP;
 			fill = *mpPtr * 50 / maxMp;
 		}
+#ifdef DW1_PLUS
+		/* The widescreen picture is wider: the bars keep the distance they have from the 4:3
+		 * picture's right edge, and the parked step (0) is pushed out far enough to leave the
+		 * wider picture too. With the margins off x0 is the table's value. */
+		x0 += dw1_plus_margin();
+		if (((bar == 0) ? BTL_HP_BAR_STEP : BTL_MP_BAR_STEP) == 0) {
+			x0 += dw1_plus_margin();
+		}
+#endif
 		BTL_renderNumber(0, 4, x0 + 0x49, y0 - 3, cur, 0xa);
 		prim = (POLY_FT4 *)GsGetWorkBase();
 		for (k = 0; k < 3; k++, p--) {

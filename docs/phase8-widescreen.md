@@ -16,7 +16,9 @@ in their middles but show black at their edges. Title screens, menus and movies 
 At 240 lines, 16:9 is 426.67 PS1 pixels wide: 53.33 more on each side of the 320 the game
 draws. The plan is DW2-PC's: the HD surfaces get those margins, the camera and every number the
 game computes stay as they are, and only the HD side draws into the margins. The 1x VRAM, the
-replays and the RNG must be identical with it on or off.
+replays and the RNG must be identical with it on or off -- with one deliberate exception since
+2026-10-23: the HUD anchors to the wider picture, which moves it in the 1x VRAM too (see "The
+HUD at the picture's edges" below). The canonical state and the replays are unaffected.
 
 ## What's in the way
 
@@ -174,10 +176,67 @@ blink, right where the actor enters the picture. The 4:3 retest is now gone: wit
 Same trace after: no blink, the same 54 frames still drawn by the gate, and the centre and 1x
 comparisons above unchanged.
 
+### 2026-10-23: the HUD at the picture's edges, the pause dim, the margin sounds
+
+Four things reported in play: the digits in the margins sounded nothing, the pause dim stopped at
+the 4:3 edge, the clock showed frozen in the battle intro, and the HUD sat 53 pixels inside the
+wider picture instead of hugging its edges.
+
+**The HUD anchors to the picture, not to the 4:3 box.** Every element the game puts against the
+edges keeps the distance it has from the 4:3 edge, so it ends up the same distance from the wider
+picture's edge: the offset constants run through `dw1_plus_margin()`, which is 0 with the margins
+off (every value below is then the vanilla one, unchanged):
+
+- **Clock** (`main/clock.c`): visible `-135` -> `-135 - m`; parked `-220` -> `-220 - m`.
+- **Happiness/discipline bars** (`main/partner_impl.c`): visible `75` -> `75 + m`; parked `240` ->
+  `240 + m`.
+- **Battle HP/MP bars** (`btl/battle_hud.c`): `BTL_STATUS_BAR_X[step] + m`, and another margin on
+  the parked step 0, whose `0xa0` is exactly the wider picture's edge.
+- **Battle command menu** (`btl/command_menu.c`): `base`, the label column (`rowY`) and the
+  hovered command's name shift by `-m`.
+
+The **frozen clock in the battle intro** was the parked clock at `-220`: it spans `-222..-172`
+and the wider picture starts at `-213`, so 41 pixels of it were inside the left margin, drawn
+without a tick. Parking it at `-220 - m` puts it wholly outside (`-273`: its right edge at
+`-225`), which is also what the shift above needs.
+
+This is the one addition that does change the 1x picture with the margins on: the HUD is drawn 53
+pixels outward in the 1x VRAM too, where the 4:3 edges clip it. It has to be a source-level shift:
+the HUD prims come from the game C, and a draw-only version would need an HD-only channel for
+every HUD primitive, its text included. With the margins off nothing changes, and the replays,
+the oracle comparisons and the canonical state never see it.
+
+**The pause dim covers the margins.** `renderPauseBox`'s box widens to `-0xa0 - m` by
+`0x140 + 2 * m`; the 1x rasterizer still clips it to the 320x240 draw area, so the PS1 picture
+keeps exactly the dim it had, and the HD drawing covers the margins (a `GsBOXF` is a GP0
+rectangle, whose HD path clips to the surface, so this is the fade's widening again). Checked by
+forcing the box on over `file-city-walk` at scale 2, `DW1_WIDE=1`: the left margin, the centre and
+the right margin darkened by the same factor (0.462 / 0.474 / 0.478 of their brightness), and the
+1x picture darkened uniformly (0.473).
+
+**Sounds follow the wider picture.** The animation script's sound instruction (`0x4000`) played
+only when `isOnScreen == 1`, the game's 320x240 test, so a digimon walking in a margin was drawn
+but silent. `renderDigimon` now records per entity whether it drew it in the last frame
+(`WIDE_DRAWN`, set exactly where the widened gate lets a culled actor through) and `anim.c`'s
+sound case asks `dw1_plus_wide_drawn(entity)` (a pointer lookup in `ENTITY_TABLE`). One frame of
+latency, which no sound can tell; nothing reaches the game state or the RNG (`playSound` only
+touches the SPU voices). The chain was checked with a temporary always-drawn flag over
+`file-city-walk`: the SPU write log then equals the log of an always-play build byte for byte
+(214829 lines against 214822 with the real gate), so the lookup does reach every sound the 4:3
+test suppressed. In that replay none of them happened to be in a margin.
+
+Checked with `new-game` (80 shots, step 200) and `file-city-walk` (94 shots), render scale 2,
+`DW1_WIDE=1` against `0`, 1x copies on: the 19 and 27 canonical-state checkpoints are
+byte-identical, and every 1x and HD-centre difference falls inside the two HUD areas (the clock
+and the bars): 3 of 80 and 16 of 94 frames, about 1000 1x pixels, box `320x206+0+20` at 1x and
+`640x412+0+40` in the HD centre, and zero pixels outside those rects when they are masked. The
+battle HUD (bars, command menu) and the battle clock could not be replayed here -- the battle
+replays need fixture cards this machine doesn't have -- so they want a check in play.
+
 Still open, in the order they would show:
 
-- **The other full-screen effects** (battle flashes, iris wipes, mist and snow, the pause dim) are
-  still 320-wide pictures or quads: they leave the margins uncovered. Covering them means drawing
+- **The other full-screen effects** (battle flashes, iris wipes, mist and snow) are still
+  320-wide pictures or quads: they leave the margins uncovered. Covering them means drawing
   their margins on the HD side without running their simulation more (snow uses the shared RNG).
 - **Scenes that are 320 wide on purpose** (title screens, menus, movies, and every scene not
   checked yet) stay 4:3 and want the pillarbox the survey recommends per scene.

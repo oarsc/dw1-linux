@@ -355,7 +355,13 @@ void tickAnimation(Entity *entity)
 		case 0x4000:
 			(*instrPtrPtr)++;
 			bankId = (**instrPtrPtr & 0xff00) >> 8;
+#ifdef DW1_PLUS
+			/* Sounds are for what is on screen; with the widescreen on, that includes the
+			 * margins, so a digimon walking out there is heard (see renderDigimon). */
+			if ((entity->isOnScreen == 1) || (dw1_plus_wide_drawn(entity) != 0)) {
+#else
 			if (entity->isOnScreen == 1) {
+#endif
 				playSound(bankId != 4
 						  ? bankId
 						  : ((DigimonEntity *)entity)

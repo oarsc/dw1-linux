@@ -492,6 +492,13 @@ void renderPauseBox(instanceId)
 	box.attribute = 0x40000000;
 	box.r = box.g = box.b = 0;
 	setRECT(&box, -0xA0, -0x78, 0x140, 0xF0);
+#ifdef DW1_PLUS
+	/* The widescreen picture's margins are screen too: dim them as well. Only the HD drawing
+	 * reads the widened rectangle; the 1x rasterizer clips it to the 320x240 draw area, so the
+	 * PS1 picture keeps the original one. */
+	box.x -= dw1_plus_margin();
+	box.w += 2 * dw1_plus_margin();
+#endif
 	GsSortBoxFill(&box, ACTIVE_ORDERING_TABLE, 7 - instanceId);
 	pos = &UI_BOX_DATA[5].finalPos;
 #if VERSION_IS(EU)

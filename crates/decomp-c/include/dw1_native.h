@@ -82,6 +82,13 @@ extern int32_t dw1_pc_saves;
 int32_t dw1_plus_margin(void);
 
 /*
+ * Nonzero when `renderDigimon` drew that entity (`Entity *`) in the last frame, the widescreen
+ * margin included, and the margins are on. The animation script's sounds ask it, so a digimon
+ * walking in a margin is heard like one at the 4:3 picture's edge (decomp main/anim.c).
+ */
+int32_t dw1_plus_wide_drawn(void *entity);
+
+/*
  * The map tile pixels captured for the extra widescreen column: 128*128 bytes a tile, row-major,
  * in map order (decomp map.c's setupMap; crates/psyq/src/gpu.rs draws the tiles). The buffer must
  * stay valid for the process (it is a static array).

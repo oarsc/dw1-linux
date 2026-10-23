@@ -257,6 +257,23 @@ void renderGameClock(int32_t instanceId)
 		CLOCK_OFFSET_X += 50;
 	}
 
+#ifdef DW1_PLUS
+	/* The widescreen picture is wider, so the clock keeps the distance it has from the 4:3
+	 * picture's left edge and is parked far enough out to be hidden by the wider picture too
+	 * (-220 leaves 12 px of it past the 4:3 edge, which the margins now show). With the
+	 * margins off both bounds are -135 and -220. */
+	{
+		int32_t margin = dw1_plus_margin();
+
+		if (CLOCK_OFFSET_X > -135 - margin) {
+			CLOCK_OFFSET_X = -135 - margin;
+		}
+
+		if (CLOCK_OFFSET_X < -220 - margin) {
+			CLOCK_OFFSET_X = -220 - margin;
+		}
+	}
+#else
 	if (CLOCK_OFFSET_X > -135) {
 		CLOCK_OFFSET_X = -135;
 	}
@@ -264,6 +281,7 @@ void renderGameClock(int32_t instanceId)
 	if (CLOCK_OFFSET_X < -220) {
 		CLOCK_OFFSET_X = -220;
 	}
+#endif
 
 	renderRectPolyFT4(CLOCK_OFFSET_X - 2, -90, 16, 16, 192, 224,
 			  GetTPage(0, 0, 896, 448), GetClut(256, 497), 9, 0);
