@@ -20,6 +20,27 @@ For each bug:
 
 ## Fixed
 
+### Empty map tiles in a new bottom row killed the game with SIGSEGV
+
+- **What happened:** while the camera scrolled down a map row the game died (`SEGV`, call
+  stack through `tickCameraFollowPlayer` -> `handleTileUpdate` -> `updateTileRow` ->
+  `LoadImage`); the PS1 shows the same area and carries on.
+- **Where:** any map whose new bottom row has an empty tile under a filled top tile; the crash
+  came while walking.
+- **Snapshot:** none; the crash came before one could be taken. The stack and the offsets are
+  in the report that was sent.
+- **Cause:** `updateTileRow` (decomp `map.c`) checks `tiles[base + i]`, the top row of the
+  window, but sets the rect and loads `tiles[i + (base + start)]`, the row being uploaded. When
+  the bottom tile is empty (`tileId == -1`, so `imagePtr == NULL`) and the top tile is not, the
+  game calls `LoadImage(NULL)`. On the PS1 that is a DMA from physical address 0 (the kernel
+  vectors), uploaded to a tile that is drawn black anyway, so the game carries on; the host has
+  no mapped page at 0 and raised SIGSEGV.
+- **Fix:** under `DW1_NATIVE`, `updateTileRow` checks the tile whose image it loads, so an
+  empty bottom tile takes the `ClearImage` path. The retail build keeps the original check.
+  In the mirror case (top empty, bottom filled) the native now uploads the real tile where the
+  PS1 cleared the slot.
+- **Status:** fixed
+
 ### The enemy's attack in Amida Forest killed the game with SIGFPE
 
 - **What happened:** the enemy attacked in Amida Forest and the game died on the spot

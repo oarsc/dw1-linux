@@ -5247,7 +5247,14 @@ void updateTileRow(bottom)
 		for (i = 0; i < count; i++) {
 			setRECT(&rect, MAP_TILE_DATA.tiles[i + (base + start)].texU, MAP_TILE_DATA.tiles[i + (base + start)].texV, 64, 128);
 
+			/* The native port must check the same tile whose image it loads: otherwise an
+			 * empty tile in the bottom row can pass a null imagePtr to LoadImage. Keep the
+			 * original PS1 check unchanged. */
+#ifdef DW1_NATIVE
+			if (MAP_TILE_DATA.tiles[i + (base + start)].tileId == -1) {
+#else
 			if (MAP_TILE_DATA.tiles[base + i].tileId == -1) {
+#endif
 				ClearImage(&rect, 0, 0, 0);
 			} else {
 				LoadImage(&rect, (u_long *)MAP_TILE_DATA.tiles[i + (base + start)].imagePtr);
