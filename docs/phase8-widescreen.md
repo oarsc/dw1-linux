@@ -254,13 +254,13 @@ cannot fill 426 pixels). On those narrow maps, the camera stays at the map's hor
 while widescreen is on, keeping the uncovered black margins equal on both sides. The X draw-offset
 limits are recalculated during camera updates, so F10 can still be toggled while a map is loaded.
 
-## 2026-10-24: GCAN09 left-margin hole
+## 2026-10-24: transparent holes in the left margin
 
-Map 44 (`GCAN09`) has transparent texels in the background tile crossing the left edge of the
-4:3 picture. At the initial camera position those holes exposed the HD surface's black clear and
-looked like a black rectangle in the widescreen margin. The native map tiles are unchanged; the
-HD-only tile copy extends the nearest opaque texel across transparent holes, then redraws only the
-tile portions inside the left margin. The repair packet is ordered after the game's map tiles, so
-it covers the holes without touching the 4:3 picture. The private tile packet carries source UV
-offsets for the clipped tile portions. Checked headless against report `20261024-162955`; the
-black patch is gone and the canonical state matches widescreen-off at the same frame.
+Map 44 (`GCAN09`) exposed transparent texels in the background tile crossing the left edge of the
+4:3 picture as a black rectangle in the widescreen margin. The same treatment now applies to all
+maps: the HD-only tile copy extends the nearest opaque texel across transparent holes, then redraws
+only tile portions inside the left margin. The repair packet is ordered after the game's map
+tiles, so it covers the holes without touching the 4:3 picture. The private tile packet carries
+source UV offsets for the clipped tile portions. Checked headless against report
+`20261024-162955`; the original black patch is gone and the canonical state matches
+widescreen-off at the same frame. Other maps still need visual testing.

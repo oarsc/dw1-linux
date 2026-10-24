@@ -2790,31 +2790,41 @@ int8_t PREV_TILE_Y;
  * the map is up. */
 static uint8_t WIDE_TILE_PIXELS[WIDE_TILES_MAX * WIDE_TILE_BYTES];
 static int32_t WIDE_TILE_HOLES_FILLED;
-/* GCAN09 has a transparent patch in its left-edge tile. Outside the original 4:3 draw area
- * there is no lower layer to show through those texels, so they form a black rectangle. Extend
- * the nearest opaque texel across holes in the HD-only copy; never touch map data or VRAM. */
+/* Transparent map texels have no lower layer to show through beyond the original 4:3 picture.
+ * Extend the nearest opaque texel across holes in the HD-only copy; never touch map data or VRAM. */
 static void fillWideTileHoles(uint8_t *pixels)
 {
 	int32_t x;
 	int32_t y;
-	int32_t distance;
-	int32_t source;
+	int32_t start;
+	int32_t end;
+	int32_t left;
+	int32_t right;
 
 	for (y = 0; y < 128; y++) {
-		for (x = 0; x < 128; x++) {
+		x = 0;
+		while (x < 128) {
 			if (pixels[y * 128 + x] != 0) {
+				x++;
 				continue;
 			}
-			for (distance = 1; distance < 128; distance++) {
-				source = x - distance;
-				if ((source >= 0) && (pixels[y * 128 + source] != 0)) {
-					pixels[y * 128 + x] = pixels[y * 128 + source];
-					break;
-				}
-				source = x + distance;
-				if ((source < 128) && (pixels[y * 128 + source] != 0)) {
-					pixels[y * 128 + x] = pixels[y * 128 + source];
-					break;
+			start = x;
+			while ((x < 128) && (pixels[y * 128 + x] == 0)) {
+				x++;
+			}
+			end = x;
+			if ((start == 0) && (end == 128)) continue;
+			left = start - 1;
+			right = end;
+			for (x = start; x < end; x++) {
+				if (start == 0) {
+					pixels[y * 128 + x] = pixels[y * 128 + right];
+				} else if (end == 128) {
+					pixels[y * 128 + x] = pixels[y * 128 + left];
+				} else if ((x - left) <= (right - x)) {
+					pixels[y * 128 + x] = pixels[y * 128 + left];
+				} else {
+					pixels[y * 128 + x] = pixels[y * 128 + right];
 				}
 			}
 		}
@@ -4113,7 +4123,7 @@ void renderWideMapColumn(GsOT_TAG *ot)
 	if (margin == 0) {
 		return;
 	}
-	if ((CURRENT_SCREEN == 44) && !WIDE_TILE_HOLES_FILLED) {
+	if (!WIDE_TILE_HOLES_FILLED) {
 		tileCount = MAP_TILE_DATA.width * MAP_TILE_DATA.height;
 		for (tile = 0; tile < tileCount; tile++) {
 			if (MAP_TILES[tile] != -1) {
@@ -4153,31 +4163,28 @@ void renderWideMapColumn(GsOT_TAG *ot)
 		}
 	}
 
-	/* Fill transparent holes in GCAN09's tile which crosses the left edge of the 4:3 view.
-	 * Queue only its intersection with the left margin, so the PS1 picture stays byte-for-byte
-	 * untouched. */
-	if (CURRENT_SCREEN == 44) {
-		tileCount = MAP_TILE_DATA.width * MAP_TILE_DATA.height;
-		for (index = 0; index < tileCount; index++) {
-			if (MAP_TILES[index] == -1) {
-				continue;
-			}
-			tileX = (MAP_TILE_DATA.tiles[index].posX - 160) -
-				(MAP_TILE_DATA.cameraX - (160 - DRAWING_OFFSET_X));
-			tileY = (MAP_TILE_DATA.tiles[index].posY - 120) -
-				(MAP_TILE_DATA.cameraY - (120 - DRAWING_OFFSET_Y));
-			left = tileX;
-			if (left < -margin) left = -margin;
-			right = tileX + 128;
-			if (right > 0) right = 0;
-			top = tileY;
-			if (top < 0) top = 0;
-			bottom = tileY + 128;
-			if (bottom > 240) bottom = 240;
-			if ((right > left) && (bottom > top)) {
-				queueWideTile(ot, index, left, top, right - left, bottom - top,
-					      left - tileX, top - tileY);
-			}
+	/* Extend transparent holes in any tile crossing the left edge of the 4:3 view. Queue only
+	 * its intersection with the left margin, so the PS1 picture stays byte-for-byte untouched. */
+	tileCount = MAP_TILE_DATA.width * MAP_TILE_DATA.height;
+	for (index = 0; index < tileCount; index++) {
+		if (MAP_TILES[index] == -1) {
+			continue;
+		}
+		tileX = (MAP_TILE_DATA.tiles[index].posX - 160) -
+			(MAP_TILE_DATA.cameraX - (160 - DRAWING_OFFSET_X));
+		tileY = (MAP_TILE_DATA.tiles[index].posY - 120) -
+			(MAP_TILE_DATA.cameraY - (120 - DRAWING_OFFSET_Y));
+		left = tileX;
+		if (left < -margin) left = -margin;
+		right = tileX + 128;
+		if (right > 0) right = 0;
+		top = tileY;
+		if (top < 0) top = 0;
+		bottom = tileY + 128;
+		if (bottom > 240) bottom = 240;
+		if ((right > left) && (bottom > top)) {
+			queueWideTile(ot, index, left, top, right - left, bottom - top,
+				      left - tileX, top - tileY);
 		}
 	}
 }
