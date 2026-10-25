@@ -4274,7 +4274,11 @@ void loadMap(int16_t mapId)
 	offsets = (int32_t *)GENERAL_BUFFER_PTR;
 	if (SKIP_MAP_FILE_READ == 0) {
 		buildMapPath(path, MAP_ENTRIES[mapId].filename, MAP_FILE_EXT_MAP, mapId);
-		readFile(path, (void *)offsets);
+#ifdef DW1_NATIVE
+		/* An edited map compiled into the binary replaces the disc's copy. */
+		if (!dw1_map_embedded_read(MAP_ENTRIES[mapId].filename, offsets))
+#endif
+			readFile(path, (void *)offsets);
 	}
 
 	setupOffset = *offsets++;

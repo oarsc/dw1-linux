@@ -368,6 +368,10 @@ uint8_t MAP_SCRIPT_BUFFER[0x2000];
 #else
 uint8_t MAP_SCRIPT_BUFFER[0x4000];
 #endif
+#ifdef DW1_NATIVE
+/* 1 while getScript reads the build-time embedded scripts, 0 when using the disc's SCN files. */
+static int32_t NATIVE_EMBEDDED_SCRIPTS = 1;
+#endif
 ScriptState SCRIPT_STATE;
 #if VERSION_IS(EU)
 uint8_t TEXTBOX_LINES_BUFFER[0x690];
@@ -676,7 +680,18 @@ uint8_t *getScript(uint16_t mapId)
 	table = (uint32_t *)SCRIPT_OFFSET_PTR;
 	offset = table[mapId];
 	size = table[mapId + 1] - table[mapId];
+#ifdef DW1_NATIVE
+	if (NATIVE_EMBEDDED_SCRIPTS) {
+		if (size > sizeof(MAP_SCRIPT_BUFFER) ||
+		    dw1_script_source_read(0, offset, MAP_SCRIPT_PTR, size) != size) {
+			dw1_native_fatal("embedded DG script range is invalid or exceeds MAP_SCRIPT_BUFFER");
+		}
+	} else {
+		readFileSection(MAIN_D_80130388, MAP_SCRIPT_PTR, offset, size);
+	}
+#else
 	readFileSection(MAIN_D_80130388, MAP_SCRIPT_PTR, offset, size);
+#endif
 
 	return MAP_SCRIPT_PTR;
 }
@@ -2207,6 +2222,10 @@ void setMapHeadActive(void)
 
 void initializeScripts(void)
 {
+#ifdef DW1_NATIVE
+	int32_t source_status;
+#endif
+
 	MAPHEAD_SCRIPT_PTR = MAPHEAD_SCRIPT_BUFFER;
 #if VERSION_IS(EU)
 	MAP_SCRIPT_PTR = MAP_SCRIPT_BUFFER;
@@ -2218,8 +2237,32 @@ void initializeScripts(void)
 	SCRIPT_STATE_PTR = &SCRIPT_STATE;
 	TEXTBOX_LINES_PTR = TEXTBOX_LINES_BUFFER;
 
+#ifdef DW1_NATIVE
+	source_status = dw1_script_sources_status();
+	if (source_status < 0) {
+		dw1_native_fatal("invalid embedded script sources");
+	}
+	memset(MAPHEAD_SCRIPT_PTR, 0, sizeof(MAPHEAD_SCRIPT_BUFFER));
+	memset(SCRIPT_OFFSET_PTR, 0, 0x2000);
+	if (source_status == 0) {
+		/* Built without embedded scripts: use the original SCN files from the disc. */
+		readFile(MAIN_D_80130374, MAPHEAD_SCRIPT_PTR);
+		readFileSection(MAIN_D_80130388, SCRIPT_OFFSET_PTR, 0, 0x2000);
+		NATIVE_EMBEDDED_SCRIPTS = 0;
+	} else {
+		if (dw1_script_source_read(1, 0, MAPHEAD_SCRIPT_PTR,
+		                           sizeof(MAPHEAD_SCRIPT_BUFFER)) <= 0) {
+			dw1_native_fatal("could not load the embedded MAPHEAD.SCN mod");
+		}
+		if (dw1_script_source_read(0, 0, SCRIPT_OFFSET_PTR, 0x2000) != 0x2000) {
+			dw1_native_fatal("could not load the embedded DG.SCN mod offset table");
+		}
+		NATIVE_EMBEDDED_SCRIPTS = 1;
+	}
+#else
 	readFile(MAIN_D_80130374, MAPHEAD_SCRIPT_PTR);
 	readFileSection(MAIN_D_80130388, SCRIPT_OFFSET_PTR, 0, 0x2000);
+#endif
 	memset((void *)SCRIPT_STATE_PTR, 0, sizeof(*SCRIPT_STATE_PTR));
 
 	MERIT = 0;

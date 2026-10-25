@@ -17,3 +17,9 @@ psyq = { path = "../psyq" }
 render = { path = "../render" }
 sha1_smol = "1"
 sdl3 = { version = "0.20.0", default-features = false, features = ["build-from-source-static", "raw-window-handle"] }
+
+[build-dependencies]
+pack = { path = "../pack" }
+sha1_smol = "1"
+serde_json = "1"
+script-format = { path = "../script-format" }

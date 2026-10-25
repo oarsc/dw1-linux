@@ -1,5 +1,6 @@
 # Disc data and anything derived from it: never commit
 disc/
+scripts/
 dumps/
 captures/
 *.bin

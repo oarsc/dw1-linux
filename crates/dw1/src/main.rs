@@ -9,9 +9,11 @@ mod applog;
 mod canon;
 mod disc;
 mod headless;
+mod map_sources;
 mod pc_text;
 mod replay;
 mod saves;
+mod script_sources;
 mod settings;
 mod window;
 

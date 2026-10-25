@@ -7,8 +7,9 @@
 - [C build flags and PS1 parity](context/C_FLAGS.md)
 - [Runtime picture settings and hotkeys](context/SETTINGS.md)
 - [Workflow and repository safety](context/WORKFLOW.md)
-- [Canonical game-state format](context/CANONICAL_STATE.md)
+- [Modding and script extraction](context/MODDING.md)
 - [Changelog from the original decomp](context/CHANGELOG.md)
+- [Canonical game-state format](context/CANONICAL_STATE.md)
 
 Follow its BUILD, C_FLAGS, and WORKFLOW links for task-specific detail.
 

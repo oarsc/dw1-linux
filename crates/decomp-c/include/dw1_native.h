@@ -69,6 +69,17 @@ _Noreturn void dw1_native_fatal(const char *what);
  * the file's values, as the PS1's load of the file would do (crates/decomp-c/src/overlays.rs). */
 void dw1_overlay_reset(int32_t lib);
 
+/* Reads the assembled editable script source (0=DG, 1=MAPHEAD); returns bytes copied. */
+int32_t dw1_script_source_read(int32_t which, uint32_t offset, void *dest, uint32_t size);
+
+/* 1 = the build embedded modded DG/MAPHEAD SCNs,
+ * 0 = no SCN mods were embedded (use the disc's original SCN files). */
+int32_t dw1_script_sources_status(void);
+
+/* Copies the edited map `name` (MapEntry.filename) into `dest` when the build
+ * embedded it; 1 = copied, 0 = not embedded (read it from the disc). */
+int32_t dw1_map_embedded_read(const char *name, void *dest);
+
 /* Nonzero when the game's save screens use the native app's save slots instead of memory cards
  * (crates/psyq/src/native.rs; the decomp's main_menu.c, Phase 7). */
 extern int32_t dw1_pc_saves;

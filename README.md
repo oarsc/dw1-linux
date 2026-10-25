@@ -117,6 +117,18 @@ executable at `target/release/dw1`.
 
 Build artifacts stay in `target/` on the host, so incremental builds are fast.
 
+<<<<<<< HEAD
+=======
+The crate registry is baked into the image itself (the `Dockerfile` runs `cargo fetch`), so
+normal builds read it from there and download nothing: the container is disposable, but the
+image it starts from already has everything. If you add a dependency and build without
+rebuilding the image, cargo downloads it into the container's throwaway layer, so it would be
+fetched again on the next run; rebuild the image (`./tools/do`) to make it part of the image.
+For heavy dependency work you can also mount a named volume instead (see the comment in
+`tools/do`).
+
+
+>>>>>>> 9538bb7 (Assemble readable scene scripts at startup)
 ### 5. Run the game
 
 You need your own legal copy of *Digimon World* (USA, SLUS-01032) as a `.cue`/`.bin` pair.
@@ -206,9 +218,7 @@ dw1-linux/
 - The game uses **Vulkan** by default on Linux. If you don't have Vulkan drivers,
   switch to OpenGL in `crates/render/Cargo.toml`.
 
----
-
 ## Project context and history
 
-Start at `context/CONTEXT.md` for the project summary, build notes, C flag rules, settings,
+Start at `AGENTS.md` for the project summary, build notes, C flag rules, settings,
 canonical-state schema, and changelog.
