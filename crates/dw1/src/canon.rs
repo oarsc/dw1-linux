@@ -1,4 +1,4 @@
-//! The canonical game-state record (schema v3, `docs/canonical-state.md`), collected from the
+//! The canonical game-state record (schema v3, `context/pages/CANONICAL_STATE.md`), collected from the
 //! native game's globals and encoded byte for byte like `oracle/canonical-state.lua`, so the
 //! port's state at a checkpoint can be compared with the emulator's.
 //!
@@ -56,7 +56,7 @@ const fn f(name: &'static str, ty: Ty, count: usize, hex: bool) -> Field {
 }
 
 /// Every field, in the binary's order (the Lua's `C.fields`; a test checks it against the
-/// layout table in `docs/canonical-state.md`).
+/// layout table in `context/pages/CANONICAL_STATE.md`).
 pub const FIELDS: &[Field] = &[
     f("mode.main_state", S8, 1, false),
     f("mode.game_state", S8, 1, false),
@@ -811,12 +811,12 @@ pub fn collect() -> Record {
 mod tests {
     use super::*;
 
-    /// The layout table of docs/canonical-state.md (generated from the Lua's `C.layout()`):
+    /// The layout table of context/pages/CANONICAL_STATE.md (generated from the Lua's `C.layout()`):
     /// (offset, size, name, type, count).
     fn doc_layout() -> Vec<(usize, usize, String, String, usize)> {
         let text = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../docs/canonical-state.md"
+            "/../../context/pages/CANONICAL_STATE.md"
         ))
         .unwrap();
         text.lines()

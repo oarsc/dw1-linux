@@ -64,27 +64,21 @@ sudo dnf install sdl3 vulkan-loader mesa-libGL libX11 libXcursor libXrandr libXi
 
 ## Step by step: compile and run
 
-### 1. Clone the repository (if not done yet)
+### 1. Clone the repository with submodules
 
 ```bash
 git clone --recurse-submodules https://github.com/oarsc/dw1-linux.git dw1-linux
 cd dw1-linux
 ```
 
-If you already have the directory, skip this step.
-
-### 2. Initialize submodules
-
+If you already cloned, you can initialize just the modules with
 ```bash
-git submodule update --init decomp
-git -C decomp submodule update --init external/psyq_headers
+git submodule update --init
 ```
 
-This downloads the `dw_decomp` code (the game decompilation) and its Psy-Q headers.
+This downloads the `dw_decomp`'s Psy-Q headers.
 
-> **Note:** The second command initializes a nested submodule inside `decomp/`. If you skip it, the build will fail with "Psy-Q headers missing".
-
-### 3. Place your game disc (legal copy required)
+### 2. Place your game disc (legal copy required)
 
 Place your own legal copy of *Digimon World* (USA) as a `.cue`/`.bin` pair in:
 
@@ -95,7 +89,7 @@ disc/Digimon World (USA).bin
 
 The `disc/` directory is gitignored — game data is never committed.
 
-### 4. Build the Docker image
+### 3. Build the Docker image
 
 From the project root:
 
@@ -109,7 +103,7 @@ This builds and tags the image as `dw1-builder`. You only need to do this once (
 build inside it does not have to download crates. Rebuild the image after adding a dependency
 if you want it prefetched; otherwise cargo simply fetches the new crate on the next build.
 
-### 5. Compile the game for Linux
+### 4. Compile the game for Linux
 
 Make the build script executable, then run it inside the Docker container with any of:
 
@@ -121,33 +115,9 @@ Make the build script executable, then run it inside the Docker container with a
 This compiles the C from `dw_decomp` and all the Rust code, producing the
 executable at `target/release/dw1`.
 
-Build artifacts stay in `target/` on the host, so incremental builds are fast. `./tools/do`
-runs the container as your own uid/gid, so everything it writes into `target/` belongs to you
-and not to `root`.
+Build artifacts stay in `target/` on the host, so incremental builds are fast.
 
-The crate registry is baked into the image itself (the `Dockerfile` runs `cargo fetch`), so
-normal builds read it from there and download nothing: the container is disposable, but the
-image it starts from already has everything. If you add a dependency and build without
-rebuilding the image, cargo downloads it into the container's throwaway layer, so it would be
-fetched again on the next run; rebuild the image (`./tools/do`) to make it part of the image.
-For heavy dependency work you can also mount a named volume instead (see the comment in
-`tools/do`).
-
-If `target/` already contains root-owned files from older runs, give it back to yourself once:
-
-```bash
-docker run --rm -v "$PWD:/dw1" dw1-builder chown -R "$(id -u):$(id -g)" /dw1/target
-```
-
-The game C's overlay data is placed with `objcopy`/`readelf` (binutils, already
-in the image), so a native build outside Docker needs `binutils` too.
-
-The first build still takes a few minutes (compiling the Rust dependencies), but they no longer
-have to be downloaded.
-
-> Equivalent shortcut: `./compile`
-
-### 6. Run the game
+### 5. Run the game
 
 You need your own legal copy of *Digimon World* (USA, SLUS-01032) as a `.cue`/`.bin` pair.
 Place them in `disc/` (gitignored — game data is never committed):
@@ -164,22 +134,7 @@ Then run any of:
 ./target/release/dw1
 ```
 
-The image in `disc/` is found automatically; set `DW1_DISC` only to use one somewhere else. The
-disc comparison tests also need the files `dumpsxiso` extracts, in `decomp/disks/us`:
-
-```bash
-dumpsxiso -x decomp/disks/us -s decomp/disks/us/us.xml \
-    "disc/Digimon World (USA).bin"
-```
-
-> **Dependencies on the host machine:** The release binary is *dynamically linked*. It needs
-> SDL3 and Vulkan (or OpenGL) libraries on the host if you run it outside Docker. The simplest
-> way is to run inside the Docker container (all dependencies are already installed there). If
-> you prefer to run on the host directly, install the runtime libraries:
-> `libsdl3`, `vulkan` (or `libgl1-mesa-dev`), `libx11`, `libxcursor`, `libxrandr`, `libxi`,
-> `libxinerama`, `libxkbcommon`, `alsa-lib`, `libpulse`.
-
-### 7. Package and install (optional)
+### 6. Package and install (optional)
 
 `tools/make-linux.sh` builds the release binary and (with `--install`) installs it to your
 system. It does **not** statically bundle libraries: the binary is dynamically linked, so the
@@ -202,7 +157,7 @@ To install to a different prefix:
 PREFIX=/opt/dw1 ./tools/do tools/make-linux.sh --install
 ```
 
-### 8. Enter the container to edit code (optional)
+### 7. Enter the container to edit code (optional)
 
 If you want to edit code and recompile without typing `./do` each time:
 
@@ -236,12 +191,10 @@ dw1-linux/
 │   ├── do              # Docker wrapper (build image / run commands)
 │   └── dtb             # Distrobox wrapper (build container / run commands)
 ├── crates/             # Rust code (window, GPU, audio, PS1 SDK, etc.)
-├── docs/               # Port plan and phase documents (phase*-plan.md, s0*-*.md)
+├── context/            # Project context, changelog, plan catalog, and detailed docs
 ├── compile             # Quick compilation of the code using Docker
 ├── run                 # Quick execution of the compiled game
-├── AGENTS.md           # Context for AI agents
-├── LINUX_PORT_STATUS.md           # Phase progress checklist
-└── LINUX_PORT_DECISIONS.md        # Design decisions made
+└── AGENTS.md           # Agent instructions; links to context/CONTEXT.md
 ```
 
 ---
@@ -252,19 +205,10 @@ dw1-linux/
 - **Never commit game data** (`.bin`, `.cue`, BIOS, saves, captures). They are in `.gitignore` under `disc/`, `dumps/`, `build/`, `captures/`, `ref/`.
 - The game uses **Vulkan** by default on Linux. If you don't have Vulkan drivers,
   switch to OpenGL in `crates/render/Cargo.toml`.
-- To edit the game logic, modify the C files in `decomp/src/` and recompile with
-  `./tools/do tools/build-linux.sh`.
 
 ---
 
-## Port plan (7 phases)
+## Project context and history
 
-The detailed plan is in `docs/` (original phase plans, e.g. `docs/phase7-plan.md`), and the
-Linux port status/decisions are tracked in `LINUX_PORT_STATUS.md` and `LINUX_PORT_DECISIONS.md`:
-1. Build system (Linux build script)
-2. C compilation (remove xcrun, compile C on Linux)
-3. Rendering backend (Metal → Vulkan/OpenGL)
-4. File paths (XDG directories)
-5. Crash handler (Linux signals)
-6. Packaging (.desktop, install scripts)
-7. Testing (PCSX-Redux oracle, 43 certified replays)
+Start at `context/CONTEXT.md` for the project summary, build notes, C flag rules, settings,
+canonical-state schema, and changelog.

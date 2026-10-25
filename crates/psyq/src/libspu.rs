@@ -126,7 +126,7 @@ const SPUCNT_UNMUTE: u16 = 0x4000;
 const SPUCNT_REVERB: u16 = 0x0080;
 const SPUCNT_CD_AUDIO: u16 = 0x0001;
 
-/// CPU cycles per VBlank in the emulator [obs: PLAN.md, "Field timing"; `stream.rs`].
+/// CPU cycles per VBlank in the emulator; see `stream.rs`.
 pub const CYCLES_PER_VBLANK: u64 = 564_398;
 /// CPU cycles per 44.1 kHz sample: 33.8688 MHz / 44100 [doc: psx-spx, SPU].
 pub const CYCLES_PER_SAMPLE: u64 = 768;

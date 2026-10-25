@@ -40,7 +40,7 @@ mod snapshot;
 mod splash;
 
 /// The PS1's NTSC non-interlaced field rate: 53.693175 MHz / (3413 x 263) = 59.817 Hz
-/// [doc: psx-spx GPU timings; PLAN.md's "Timing is measured", docs/s08-oracle.md]. Redux, the
+/// [doc: psx-spx GPU timings]. Redux, the
 /// oracle, counts at 60.009 Hz, which is a quirk of its counter and not what to match.
 /// In thousandths of a hertz, so the arithmetic stays integer.
 pub const FIELD_MILLIHZ: u64 = 59_817;

@@ -2,8 +2,8 @@
 
 2026-10-13. `oracle/canonical-state.lua` serializes the game's semantic state from PS1 RAM into a
 versioned, fixed-width, little-endian binary (1325 bytes) and a text rendering for diffs. The
-oracle writes one at every checkpoint of a replay (`docs/s08-oracle.md`); the port will write the
-same record from its own memory and compare. It is the "canonical schema" of PLAN.md's oracle
+oracle writes one at every checkpoint of a replay; the port writes the same record from its own
+memory for comparison. It is the canonical schema used by the oracle tooling.
 section: never a raw struct dump (padding, `jmp_buf`, pointers), with documented exclusions.
 
 Derived from a gpt-6.1-sol survey of the MIT decomp (`decomp/` at 09c174c, struct layouts under
@@ -49,7 +49,7 @@ RNG words in hex). Any change to the field list or encoding bumps the version.
   injured, 0x40 sick. `partner_state` 3 is asleep, 6 toilet, 1 normal.
 - RNGs: `custom_val1/2` are the game's `customRandom` states (`s = s * 0x41C650AD + 0x3039`,
   VAL2 starts at 0x0013CC25, VAL1 at 0); `bios_rand_state` is the BIOS `rand()` state at RAM
-  0x9010 (`x = x * 0x41C64E6D + 0x3039`, see `docs/s08-oracle.md`).
+  0x9010 (`x = x * 0x41C64E6D + 0x3039`).
 
 ## v3 changes
 

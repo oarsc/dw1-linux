@@ -22,8 +22,8 @@
 //!
 //! **Time.** Every sector has an arrival time on the VBlank clock: the n-th sector since the
 //! read began arrives at `t0 + ceil(n * 225,792 / 564,398)` VBlanks at double speed (a sector
-//! every 225,792 cycles = 33,868,800 / 150 [doc]; 564,398 cycles per VBlank [obs: PLAN.md "Field
-//! rate", Redux], so 2.4996 sectors per VBlank; 75 a second at single speed doubles the
+//! every 225,792 cycles = 33,868,800 / 150 [doc]; 564,398 cycles per VBlank [observed in Redux],
+//! so 2.4996 sectors per VBlank; 75 a second at single speed doubles the
 //! sector time). `t0` is the VBlank the read was issued at plus [`START_LATENCY`]. Sectors are
 //! processed lazily when a call looks at the stream ([`Stream::sync`]); a poll that finds no
 //! frame ready runs ahead to the next frame's last sector and reports the VBlank it arrives at,
@@ -40,11 +40,11 @@ pub const PAYLOAD_BYTES: usize = SECTOR_BYTES - HEADER_BYTES;
 
 /// Cycles a sector takes at double speed, 33,868,800 / 150 [doc: psx-spx "CDROM Overview"].
 const SECTOR_CYCLES_2X: u64 = 225_792;
-/// CPU cycles per VBlank in the emulator the oracle runs [obs: PLAN.md, "Field rate"].
+/// CPU cycles per VBlank in the emulator the oracle runs.
 const VBLANK_CYCLES: u64 = 564_398;
 
 /// VBlanks from the read command to the first sector: the drive seeks to the Setloc position
-/// and spins up. [guess; compared with PCSX-Redux in docs/phase2-movie.md]
+/// and spins up. This estimate was compared with PCSX-Redux.
 pub const START_LATENCY: u32 = 4;
 
 /// Most sectors a poll looks ahead for a frame before deciding none is coming (a read past the

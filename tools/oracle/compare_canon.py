@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare canonical game-state checkpoints (docs/canonical-state.md) of a native run with the
+"""Compare canonical game-state checkpoints (context/pages/CANONICAL_STATE.md) of a native run with the
 emulator's, pairing them by checkpoint number and name (ckpt_NNNN_<why>), and print the
 field-level differences from the .txt files. Exit 0 only if at least one pair was found, every
 pair is identical, and (unless --allow-unpaired) no checkpoint on either side is left unpaired.
@@ -10,7 +10,7 @@ The native run usually stops early (an unimplemented SDK call), so it has fewer 
 than the oracle; pass --allow-unpaired to compare just the ones both have. --also-bin checks
 that each pair's .bin files are byte-identical too (always checked now). Every record must be
 well formed: the .txt has the schema's header line and exactly its fields and counts (from
-docs/canonical-state.md), the .bin a valid DW1CANON header; anything else counts as a difference.
+context/pages/CANONICAL_STATE.md), the .bin a valid DW1CANON header; anything else counts as a difference.
 """
 from __future__ import annotations
 
@@ -21,12 +21,12 @@ from pathlib import Path
 
 NAME = re.compile(r"^ckpt_(\d{4})_(.+)\.txt$")
 SIZES = {"u8": 1, "s8": 1, "u16": 2, "s16": 2, "u32": 4, "s32": 4}
-DOC = Path(__file__).resolve().parents[2] / "docs" / "canonical-state.md"
-VERSION = 3  # the schema docs/canonical-state.md describes
+DOC = Path(__file__).resolve().parents[2] / "context" / "pages" / "CANONICAL_STATE.md"
+VERSION = 3  # the schema context/pages/CANONICAL_STATE.md describes
 
 
 def schema() -> list[tuple[str, int, int]]:
-    """(name, element size, count) of every field, from the layout table in docs/canonical-state.md."""
+    """(name, element size, count) of every field, from the layout table in CANONICAL_STATE.md."""
     rows = []
     for line in DOC.read_text().splitlines():
         m = re.match(r"^\| 0x[0-9A-F]{4} \| \d+ \| `([^`]+)` \| (\w+)(?:\[(\d+)\])? \|", line)

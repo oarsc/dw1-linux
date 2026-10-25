@@ -1,4 +1,4 @@
--- Canonical game-state dump, schema v3 (docs/canonical-state.md).
+-- Canonical game-state dump, schema v3 (context/pages/CANONICAL_STATE.md).
 --
 -- A versioned, fixed-width, little-endian serialization of the semantic game state, read from
 -- PS1 RAM, plus a text rendering for diffs. Never a raw struct dump: padding, unused fields,
@@ -64,7 +64,7 @@ end
 local function derived(name, ty, count, src, fn, hex) add(name, ty, count, src, fn, hex) end
 
 -- Addresses: decomp/config/us/symbols.txt (all checked against it, 2026-10-13) plus member offsets
--- from the decomp headers (docs/canonical-state.md).
+-- from the decomp headers (context/pages/CANONICAL_STATE.md).
 local A = {
     MAIN_STATE = 0x80134EB4, GAME_STATE = 0x80134F0A, IS_IN_MENU = 0x80134EF0,
     MAP_LAYER_ENABLED = 0x80134EC8, PAUSE_STATE = 0x80134E79,
