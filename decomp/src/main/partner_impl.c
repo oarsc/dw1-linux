@@ -1135,6 +1135,16 @@ void handlePraiseScold(state)
 		if (ITEM_SCOLD_FLAG == 1) {
 			disciplineDelta = 8;
 			ITEM_SCOLD_FLAG = 2;
+#ifdef DW1_NATIVE
+			/* The PS1 never assigns happinessDelta on this path: it is $s1, which
+			 * tickObjects leaves as the index of the object it is ticking. A fade
+			 * object lingers from the final fadeToBlack (its renderFadeOut never
+			 * removes it), so a new game has fade 1, tamer 2, partner 3, and a
+			 * continue has tamer 1, fade 2, partner 3. The retail game therefore adds
+			 * 3 happiness to the 8 discipline points. Leaving it uninitialised makes
+			 * GCC/Clang reuse the else branch's -10 instead. */
+			happinessDelta = 3;
+#endif
 		} else {
 			disciplineDelta = 2;
 			happinessDelta = -10;
