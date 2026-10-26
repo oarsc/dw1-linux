@@ -84,6 +84,13 @@ rest-ice p9-rest-ice-record p9-rest-ice
 rest-agumon p9-rest-agumon-record p9-rest-agumon'
 
 want="$*"
+# A typo would otherwise match nothing and exit 0 as if the run had passed.
+for w in $want; do
+    if ! echo "$table" | awk -v n="$w" '$1 == n { found = 1 } END { exit !found }'; then
+        echo "$w: not a replay in the table" >&2
+        exit 2
+    fi
+done
 echo "$table" | while read -r name oracle card card2; do
     if [ -n "$want" ] && ! echo " $want " | grep -q " $name "; then continue; fi
     odir=captures/oracle-runs/$oracle

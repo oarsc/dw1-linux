@@ -8,7 +8,9 @@
 - [Runtime picture settings and hotkeys](context/SETTINGS.md)
 - [Workflow and repository safety](context/WORKFLOW.md)
 - [Modding and script extraction](context/MODDING.md)
+- [Differences from the original PS1 game](context/GAME_DIFFERENCES.md)
 - [Changelog from the original decomp](context/CHANGELOG.md)
+- [Reproducing a run headless from replays and bug reports](context/REPRODUCING.md)
 - [Canonical game-state format](context/CANONICAL_STATE.md)
 
 Follow its BUILD, C_FLAGS, and WORKFLOW links for task-specific detail.

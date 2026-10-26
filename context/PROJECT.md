@@ -20,13 +20,12 @@ routine by routine.
 - Saves, settings, and reports use XDG paths. Audio, controls, and save/load have been exercised.
 - Widescreen is a new, opt-in feature and remains WIP; see its entry in the
   [changelog](CHANGELOG.md).
-- Remaining Linux verification: run the certified replay suite against PCSX-Redux and exercise
-  `tools/make-linux.sh --install`. These are verification tasks; the porting milestones are
-  otherwise complete.
 
 ## Where code lives
 
-- `decomp/src/` — decompiled game C, edited and rebuilt for this port.
+- `decomp/src/` — decompiled game C, edited and rebuilt for this port. Upstream changes from
+  `dw_decomp` are pulled in with [`tools/sync-decomp.sh`](../tools/sync-decomp.sh); see
+  [WORKFLOW.md](WORKFLOW.md#updating-the-vendored-decomp) for the procedure and conflict handling.
 - `crates/psyq/` — Rust reimplementations of PS1 library behavior.
 - `crates/backend/` and `crates/render/` — GPU emulation/HD rendering and window presentation.
 - `crates/dw1/` — application startup, settings, window, input, audio integration, and saves.

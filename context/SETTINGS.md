@@ -15,7 +15,7 @@ saved to this file. Boolean values accept `true`/`false`, `on`/`off`, or `1`/`0`
 | **F10** | `widescreen` | Toggles the 426×240 (about 16:9) HD picture. Addition; needs render scale above 1. In auto mode, widescreen keeps scale at least 2. |
 | **F11** | `fullscreen` | Toggles fullscreen and windowed mode. |
 | **Ctrl+Super+F** | `fullscreen` | Also toggles fullscreen. |
-| **F12** | bug snapshot | Writes a report with screenshots, state, recent pad input, settings, save copies, and log under `$XDG_DATA_HOME/dw1-linux/reports/` (default `~/.local/share/dw1-linux/reports/`). |
+| **F12** | bug snapshot | Writes a report with screenshots, state, recent pad input, settings, save copies, and log under `$XDG_DATA_HOME/dw1-linux/reports/` (default `~/.local/share/dw1-linux/reports/`). See [REPRODUCING.md](REPRODUCING.md) for replaying its input headless. |
 
 No F1, F6, F7, F8, or F9 picture hotkeys are currently implemented.
 

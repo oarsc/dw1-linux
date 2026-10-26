@@ -17,6 +17,9 @@ The output `target/` directory is shared with the host and should remain owned b
 user. In a headless/containerized window run, configure `XDG_RUNTIME_DIR` for the session.
 See the [README](../README.md) for host runtime packages and detailed setup.
 
+Headless runs (certified replay verification and replaying a bug report's input) are covered in
+[REPRODUCING.md](REPRODUCING.md).
+
 ## Disc and extracted files
 
 Provide a legal US disc image as `disc/Digimon World (USA).cue` and its `.bin`. The `disc/`

@@ -65,6 +65,18 @@ from [AGENTS.md](../AGENTS.md).
 - Fixed native map/model edge cases found in certified routes, including FISH model alignment,
   scripted battles with empty slots, and string handling in KAR hint pages.
 
+## Script, map, and gameplay modding
+
+- Added a readable SCN text assembler and extraction workflow for `DG.SCN` and `MAPHEAD.SCN`.
+  SCN mods can replace script blocks, inject code before or after original logic, add or remove DG
+  label blocks, and add or redirect MAPHEAD entries. `~CONTINUE` supports non-destructive hooks.
+- Added compile-time SCN functions and constants, including quoted text/command arguments and
+  nested parameter forwarding. These are expanded into ordinary SCN source before assembly; they
+  add no runtime macro system to the game.
+- Added JSON MAP mods for warp and NPC field edits, including NPC addition and removal. The build
+  extracts only mod-targeted assets from the user's disc, applies the changes, and assembles the
+  modified assets into the executable. See the [modding guide](MODDING.md).
+
 ## Optional presentation and tooling additions
 
 - Added an HD rendering side path at render scales 2–8 while retaining the PS1 1x VRAM for game

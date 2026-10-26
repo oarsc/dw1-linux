@@ -206,7 +206,7 @@ dw1-linux/
 ├── context/            # Project context, changelog, plan catalog, and detailed docs
 ├── compile             # Quick compilation of the code using Docker
 ├── run                 # Quick execution of the compiled game
-└── AGENTS.md           # Agent instructions; links to context/CONTEXT.md
+└── AGENTS.md           # Agent instructions; links the maintained context pages
 ```
 
 ---

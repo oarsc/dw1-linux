@@ -18,7 +18,7 @@
 //!
 //! Checkpoints (`DW1_CHECKPOINTS`, on by default with `DW1_REPLAY`; `0` turns them off, `1`
 //! turns them on without a replay): the canonical game-state record (`canon.rs`,
-//! `context/pages/CANONICAL_STATE.md`) written to `DW1_OUT` as `ckpt_NNNN_<why>.bin` and `.txt`, at
+//! `context/CANONICAL_STATE.md`) written to `DW1_OUT` as `ckpt_NNNN_<why>.bin` and `.txt`, at
 //! the same triggers and with the same numbering as `oracle/replay.lua`: a change of
 //! MAIN_STATE (`main<N>`), GAME_STATE (`game<N>`) or CURRENT_SCREEN (`screen<N>`) seen at a
 //! pad poll, every 600th poll (`every<N>`), and `final`. The emulator writes `final` at the
