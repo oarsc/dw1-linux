@@ -1,9 +1,9 @@
 + CONST DIGIMON 0x5d  # Muchomon
 + CONST ENTITY 0x09
 + CONST CHANCE_KEEP 75
-+ CONST CHANCE_RAISE 60
-+ CONST CHANCE_RAISE2 50
-+ CONST CHANCE_LEAVE_1 45
++ CONST CHANCE_RAISE 70
++ CONST CHANCE_RAISE2 60
++ CONST CHANCE_LEAVE_1 40
 + CONST CHANCE_LEAVE_2 50
 + CONST CHANCE_LEAVE_3 100
 
@@ -17,11 +17,11 @@
   ENTITY_LOOK_AT_ENTITY entity=$ENTITY target=0xfd
   STORE_RANDOM pstat_out=0x6e max=99
   .if
-    THEN pstat 0x6e < 30
+    THEN pstat 0x6e < 25
     if true goto m202_meat
   .end
   .if
-    THEN pstat 0x6e < 65
+    THEN pstat 0x6e < 50
     if true goto m202_portable
   .end
   JUMP_TO m202_medicine
@@ -66,7 +66,7 @@
   JUMP_TO m202_meat_decide
 
 + DG map 202 section m202_meat_keep
-  CALL_FUNCTION addMoodEmote mood=0x00
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x00
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -82,7 +82,7 @@
   JUMP_TO m202_meat_decide
 
 + DG map 202 section m202_meat_raise
-  CALL_FUNCTION addMoodEmote mood=0x02
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x02
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -99,7 +99,7 @@
   JUMP_TO m202_meat_decide
 
 + DG map 202 section m202_meat_raise2
-  CALL_FUNCTION addMoodEmote mood=0x03
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x03
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -228,7 +228,7 @@
   JUMP_TO m202_portable_decide
 
 + DG map 202 section m202_portable_keep
-  CALL_FUNCTION addMoodEmote mood=0x00
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x00
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -245,7 +245,7 @@
   JUMP_TO m202_portable_decide
 
 + DG map 202 section m202_portable_raise
-  CALL_FUNCTION addMoodEmote mood=0x02
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x02
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -262,7 +262,7 @@
   JUMP_TO m202_portable_decide
 
 + DG map 202 section m202_portable_raise2
-  CALL_FUNCTION addMoodEmote mood=0x03
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x03
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -391,7 +391,7 @@
   JUMP_TO m202_medicine_decide
 
 + DG map 202 section m202_medicine_keep
-  CALL_FUNCTION addMoodEmote mood=0x00
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x00
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -407,7 +407,7 @@
   JUMP_TO m202_medicine_decide
 
 + DG map 202 section m202_medicine_raise
-  CALL_FUNCTION addMoodEmote mood=0x02
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x02
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -424,7 +424,7 @@
   JUMP_TO m202_medicine_decide
 
 + DG map 202 section m202_medicine_raise2
-  CALL_FUNCTION addMoodEmote mood=0x03
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x03
 
   SET_DIALOG_OWNER entity=0xff
   .text
@@ -579,7 +579,7 @@
 
   SET_PSTAT pstat=0xf3 value=$high  # shop variable high byte
   SET_PSTAT pstat=0xf4 value=$low   # shop variable low byte
-  CALL_ROUTINE builtin=0x1f         # fn addProfit
+  CALL_ROUTINE builtin=0x1f         # fn addToShopVariable
 
   .text
     "Profit: $value"
@@ -587,14 +587,14 @@
   .end
 .end
 
-+ FUNCTION addMoodEmote mood
++ FUNCTION createMonochromonMoodBubble mood
   SET_PSTAT pstat=0xf7 value=$ENTITY  # builtin parameter 1 (entity/script id)
   SET_PSTAT pstat=0xf8 value=$mood    # builtin parameter 2 (mood/amount)
-  CALL_ROUTINE builtin=0x1c
+  CALL_ROUTINE builtin=0x1c           # fn createMonochromonMoodBubble
 .end
 
 + FUNCTION cleanMoodEmote
-  CALL_FUNCTION addMoodEmote mood=0x05
+  CALL_FUNCTION createMonochromonMoodBubble mood=0x05
 .end
 
 
