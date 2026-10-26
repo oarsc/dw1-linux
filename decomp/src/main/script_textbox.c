@@ -785,6 +785,13 @@ int32_t drawString2(uint8_t *str, int16_t x, int16_t y, int32_t flag)
 #else
 				setRECT(&rect, x + pos, y, 0xc, 0xc);
 				clearTextSubArea(&rect);
+#ifdef DW1_PLUS
+				/* The PS1's space advances by the previous glyph's width, so the gap
+				 * follows that glyph: 16 px after 'I', 6 px after '.', 7 px after 'l'.
+				 * Use the usual letter advance instead; fixed-width menus keep their
+				 * 12 px cell (0xc). */
+				adv = (DRAW_STRING2_IS_FIXED_WIDTH != 0) ? 0xc : 8;
+#endif
 #endif
 			} else {
 #if VERSION_IS(EU)
@@ -794,6 +801,18 @@ int32_t drawString2(uint8_t *str, int16_t x, int16_t y, int32_t flag)
 #else
 				y2 = y;
 				adv = drawGlyph(glyph, x + pos, y2);
+#ifdef DW1_PLUS
+				if (DRAW_STRING2_IS_FIXED_WIDTH == 0 &&
+				    (glyph == 0x4281 || /* . */ glyph == 0x4381 || /* , */
+				     glyph == 0x4681 || /* : */ glyph == 0x4781 || /* ; */
+				     glyph == 0x4881 || /* ? */ glyph == 0x4981)) { /* ! */
+					/* Glyphs upload to a 4 bpp VRAM area at x / 4, so keep the
+					 * advance a multiple of 4; otherwise the 4 px quantization
+					 * makes gaps alternate, which is visible sometimes. */
+					adv += 4;
+					adv = (adv + 2) & ~3;
+				}
+#endif
 				if (DRAW_STRING2_IS_FIXED_WIDTH != 0) {
 					adv = 0xc;
 				}

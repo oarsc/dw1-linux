@@ -81,6 +81,9 @@ from [AGENTS.md](../AGENTS.md).
 
 - Added an HD rendering side path at render scales 2–8 while retaining the PS1 1x VRAM for game
   logic and oracle comparisons.
+- Corrected dialogue word spacing in the native build (`DW1_PLUS`): a space advances by the usual
+  8 px letter width instead of copying the previous glyph's width. Fixed-width menus keep their
+  12 px cell, and the PS1 build is unchanged.
 - Added no-wobble model positioning and full-colour HD shading/blending as opt-in/setting-based
   presentation features.
 - Added F12 bug snapshots containing screenshots, canonical state, recent controller input,

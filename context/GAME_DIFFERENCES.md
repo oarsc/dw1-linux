@@ -13,6 +13,13 @@ neighboring map tiles and widened draw paths. Widescreen is off by default, requ
 above 1, and remains a work in progress: unsupported scenes or narrow maps may have black margins.
 Movies and other 4:3 pictures remain 4:3. See [picture settings](SETTINGS.md).
 
+### Dialogue word spacing
+
+The original game's textbox renderer advances a space by the previous glyph's width, so the word
+gap follows the preceding letter: 16 px after `I` and 6 px after `.` or `,`. The native build
+advances spaces by the usual 8 px letter width instead, which also removes the doubled gap after
+wide letters. Fixed-width menus keep their 12 px cell. The PS1 build is unchanged.
+
 ## Mods
 
 ### Koromon placement
