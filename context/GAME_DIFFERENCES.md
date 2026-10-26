@@ -22,8 +22,20 @@ wide letters. Fixed-width menus keep their 12 px cell. The PS1 build is unchange
 
 ## Mods
 
+For information on creating and applying mods, see the [modding guide](MODDING.md).
+
 ### Koromon placement
 
 `mods/move-koromon.maps.json` repositions NPC 0 in the Green Gym map (`TRAI00`) to
-`(-100, 0, -3268)` and changes its rotation to `(0, -512, 0)`. See [modding](MODDING.md) for the MAP
-field-mod format.
+`(-100, 0, -3268)` and changes its rotation to `(0, -512, 0)`.
+
+### Monochrome Shop rework
+
+The mods in `mods/monochrome-shop/` rework the shop encounters for Goburimon, Gotsumon, Weedmon,
+and Muchomon. For each encounter, players can keep the base price or try to charge 20% or 40% more.
+The chance of making a sale depends on the customer and the markup; after failed negotiations, a
+customer may leave. The scripts also update the shop dialogue and display the profit from each
+sale and the running total.
+
+`win-condition.scnmod` lowers the shop challenge's success target to 2,500 bits in profit. The
+original game required 3,072 bits.

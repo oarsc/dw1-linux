@@ -1,0 +1,9 @@
+@ DG m49_ba14
+  .if
+    # if profit >= 2500 (0x09c4)
+    THEN pstat 0xf3 >= 0x09  # shop variable high byte
+    AND pstat 0xf4 >= 0xc4   # shop variable low byte
+    OR pstat 0xf3 >= 0x0A    # shop variable high byte
+    if true goto m49_bacc
+  .end
+  ~CONTINUE

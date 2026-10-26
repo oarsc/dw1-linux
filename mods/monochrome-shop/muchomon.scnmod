@@ -1,0 +1,736 @@
++ CONST DIGIMON 0x5d  # Muchomon
++ CONST ENTITY 0x09
++ CONST CHANCE_KEEP 75
++ CONST CHANCE_RAISE 60
++ CONST CHANCE_RAISE2 50
++ CONST CHANCE_LEAVE_1 45
++ CONST CHANCE_LEAVE_2 50
++ CONST CHANCE_LEAVE_3 100
+
+@ DG m202_se
+  ADD_TO_PSTAT pstat=0x7b amount=0x01
+  LOAD_DIGIMON digimon=$DIGIMON
+  SET_DIGIMON digimon=$DIGIMON slot=0x04 autotalk=0x00
+  DELAY frames=0x0014
+  ENTITY_WALK_TO entity=$ENTITY x=-501 z=-508 animation=0x00 flags=0x00
+  WAIT_FOR_ENTITY entity=$ENTITY
+  ENTITY_LOOK_AT_ENTITY entity=$ENTITY target=0xfd
+  STORE_RANDOM pstat_out=0x6e max=99
+  .if
+    THEN pstat 0x6e < 30
+    if true goto m202_meat
+  .end
+  .if
+    THEN pstat 0x6e < 65
+    if true goto m202_portable
+  .end
+  JUMP_TO m202_medicine
+
+
+
+# ███╗   ███╗███████╗ █████╗ ████████╗
+# ████╗ ████║██╔════╝██╔══██╗╚══██╔══╝
+# ██╔████╔██║█████╗  ███████║   ██║   
+# ██║╚██╔╝██║██╔══╝  ██╔══██║   ██║   
+# ██║ ╚═╝ ██║███████╗██║  ██║   ██║   
+# ╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   
+#######################################
+
++ DG map 202 section m202_meat
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "Boy, I want some {color:06}Meat{color:01}."
+  .end
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Welcome, so you want some"
+    "{color:06}Meat{color:01}. Well, uh..."
+  .end
+
++ DG map 202 section m202_meat_decide
+  CALL_FUNCTION cleanMoodEmote
+
+  SET_PSTAT pstat=0x75 value=0x06
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Keep price at 50 bits" -> m202_meat_keep
+    "Raise price to 60 bits" -> m202_meat_raise
+    "Raise price to 70 bits" -> m202_meat_raise2
+  .end
+  UNUSED_12
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Uh, you want a good deal on"
+    "{color:06}Meat{color:01}, right? Uh..."
+  .end
+  JUMP_TO m202_meat_decide
+
++ DG map 202 section m202_meat_keep
+  CALL_FUNCTION addMoodEmote mood=0x00
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How's 50 bits for {color:06}Meat{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=1
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Continue" -> m202_meat_confirm_keep
+    "Let me rethink this" -> m202_meat_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_meat_decide
+
++ DG map 202 section m202_meat_raise
+  CALL_FUNCTION addMoodEmote mood=0x02
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How about 60 bits for"
+    "{color:06}Meat{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=2
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Continue" -> m202_meat_confirm_raise
+    "Let me rethink this" -> m202_meat_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_meat_decide
+
++ DG map 202 section m202_meat_raise2
+  CALL_FUNCTION addMoodEmote mood=0x03
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How about 70 bits for"
+    "{color:06}Meat{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=3
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Continue" -> m202_meat_confirm_raise2
+    "Let me rethink this" -> m202_meat_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_meat_decide
+
++ DG map 202 section m202_meat_confirm_keep
+  CALL_FUNCTION gotoIf chances=$CHANCE_KEEP goto=m202_meat_success
+  JUMP_TO m202_meat_fail
+
++ DG map 202 section m202_meat_confirm_raise
+  CALL_FUNCTION gotoIf chances=$CHANCE_RAISE goto=m202_meat_success
+  JUMP_TO m202_meat_fail
+
++ DG map 202 section m202_meat_confirm_raise2
+  CALL_FUNCTION gotoIf chances=$CHANCE_RAISE2 goto=m202_meat_success
+  JUMP_TO m202_meat_fail
+
++ DG map 202 section m202_meat_success
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "Okay, I'll buy it!"
+  .end
+  PLAY_SOUND bank=0x08 sound=0x06
+  DELAY frames=0x000a
+  
+  .if
+    THEN pstat 0x75 == 2
+    if true goto m202_meat_success_raise
+  .end
+  .if
+    THEN pstat 0x75 == 3
+    if true goto m202_meat_success_raise2
+  .end
+  CALL_FUNCTION addProfit high=0 low=15 value=15
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_meat_success_raise
+  CALL_FUNCTION addProfit high=0 low=25 value=25
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_meat_success_raise2
+  CALL_FUNCTION addProfit high=0 low=35 value=35
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_meat_fail
+  CALL_FUNCTION cleanMoodEmote
+  ADD_TO_PSTAT pstat=0x77 amount=0x01
+  STORE_RANDOM pstat_out=0x6e max=99
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_1
+    AND pstat 0x77 == 0x01
+    if true goto m202_angry_leave
+  .end
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_2
+    AND pstat 0x77 == 0x02
+    if true goto m202_angry_leave
+  .end
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_3
+    AND pstat 0x77 >= 0x03
+    if true goto m202_angry_leave
+  .end
+  JUMP_TO m202_meat_retry
+
++ DG map 202 section m202_meat_retry
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "You're charging too much!"
+  .end
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Really? Well then..."
+  .end
+  JUMP_TO m202_meat_decide
+
+
+
+# ██████╗  ██████╗ ██████╗ ████████╗ █████╗ ██████╗ ██╗     ███████╗     ██████╗  ██████╗ ████████╗████████╗██╗   ██╗
+# ██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██║     ██╔════╝     ██╔══██╗██╔═══██╗╚══██╔══╝╚══██╔══╝╚██╗ ██╔╝
+# ██████╔╝██║   ██║██████╔╝   ██║   ███████║██████╔╝██║     █████╗       ██████╔╝██║   ██║   ██║      ██║    ╚████╔╝ 
+# ██╔═══╝ ██║   ██║██╔══██╗   ██║   ██╔══██║██╔══██╗██║     ██╔══╝       ██╔═══╝ ██║   ██║   ██║      ██║     ╚██╔╝  
+# ██║     ╚██████╔╝██║  ██║   ██║   ██║  ██║██████╔╝███████╗███████╗     ██║     ╚██████╔╝   ██║      ██║      ██║   
+# ╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝     ╚═╝      ╚═════╝    ╚═╝      ╚═╝      ╚═╝   
+#####################################################################################################################
+
++ DG map 202 section m202_portable
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "Boy, I gotta get a"
+    "{color:06}Portable Potty{color:01}."
+  .end
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Uh... Welcome, you want a"
+    "{color:06}Portable Potty{color:01}?"
+  .end
+  JUMP_TO m202_portable_decide
+
++ DG map 202 section m202_portable_decide
+  CALL_FUNCTION cleanMoodEmote
+
+  SET_PSTAT pstat=0x75 value=0x06
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Keep price at 300 bits" -> m202_portable_keep
+    "Raise price to 360 bits" -> m202_portable_raise
+    "Raise price to 420 bits" -> m202_portable_raise2
+  .end
+  UNUSED_12
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Uh... you want a good deal"
+    "on a {color:06}Portable Potty{color:01}?"
+  .end
+  JUMP_TO m202_portable_decide
+
++ DG map 202 section m202_portable_keep
+  CALL_FUNCTION addMoodEmote mood=0x00
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How about a 300 bits for a"
+    "{color:06}Portable Potty{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=1
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Confirm" -> m202_portable_confirm_keep
+    "Let me rethink this" -> m202_portable_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_portable_decide
+
++ DG map 202 section m202_portable_raise
+  CALL_FUNCTION addMoodEmote mood=0x02
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How's a 360 bit {color:06}Portable"
+    "Potty{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=2
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Confirm" -> m202_portable_confirm_raise
+    "Let me rethink this" -> m202_portable_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_portable_decide
+
++ DG map 202 section m202_portable_raise2
+  CALL_FUNCTION addMoodEmote mood=0x03
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How about 420 bits for a"
+    "{color:06}Portable Potty{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=3
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Confirm" -> m202_portable_confirm_raise2
+    "Let me rethink this" -> m202_portable_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_portable_decide
+
++ DG map 202 section m202_portable_confirm_keep
+  CALL_FUNCTION gotoIf chances=$CHANCE_KEEP goto=m202_portable_success
+  JUMP_TO m202_portable_fail
+
++ DG map 202 section m202_portable_confirm_raise
+  CALL_FUNCTION gotoIf chances=$CHANCE_RAISE goto=m202_portable_success
+  JUMP_TO m202_portable_fail
+
++ DG map 202 section m202_portable_confirm_raise2
+  CALL_FUNCTION gotoIf chances=$CHANCE_RAISE2 goto=m202_portable_success
+  JUMP_TO m202_portable_fail
+
++ DG map 202 section m202_portable_success
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "Okay, I'll buy it!"
+  .end
+  PLAY_SOUND bank=0x08 sound=0x06
+  DELAY frames=0x000a
+  
+  .if
+    THEN pstat 0x75 == 2
+    if true goto m202_portable_success_raise
+  .end
+  .if
+    THEN pstat 0x75 == 3
+    if true goto m202_portable_success_raise2
+  .end
+  CALL_FUNCTION addProfit high=0 low=90 value=90
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_portable_success_raise
+  CALL_FUNCTION addProfit high=0 low=150 value=150
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_portable_success_raise2
+  CALL_FUNCTION addProfit high=0 low=210 value=210
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_portable_fail
+  CALL_FUNCTION cleanMoodEmote
+  ADD_TO_PSTAT pstat=0x77 amount=0x01
+  STORE_RANDOM pstat_out=0x6e max=99
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_1
+    AND pstat 0x77 == 0x01
+    if true goto m202_angry_leave
+  .end
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_2
+    AND pstat 0x77 == 0x02
+    if true goto m202_angry_leave
+  .end
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_3
+    AND pstat 0x77 >= 0x03
+    if true goto m202_angry_leave
+  .end
+  JUMP_TO m202_portable_retry
+
++ DG map 202 section m202_portable_retry
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "That's just too much?"
+  .end
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Nah? Well... Well then..."
+  .end
+  JUMP_TO m202_portable_decide
+
+
+
+# ███╗   ███╗███████╗██████╗ ██╗ ██████╗██╗███╗   ██╗███████╗
+# ████╗ ████║██╔════╝██╔══██╗██║██╔════╝██║████╗  ██║██╔════╝
+# ██╔████╔██║█████╗  ██║  ██║██║██║     ██║██╔██╗ ██║█████╗  
+# ██║╚██╔╝██║██╔══╝  ██║  ██║██║██║     ██║██║╚██╗██║██╔══╝  
+# ██║ ╚═╝ ██║███████╗██████╔╝██║╚██████╗██║██║ ╚████║███████╗
+# ╚═╝     ╚═╝╚══════╝╚═════╝ ╚═╝ ╚═════╝╚═╝╚═╝  ╚═══╝╚══════╝
+#############################################################
+
++ DG map 202 section m202_medicine
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "Boy, I want some"
+    "{color:06}Medicine{color:01}."
+  .end
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Uh... Welcome, you want some"
+    "{color:06}Medicine{color:01}?"
+  .end
+  JUMP_TO m202_medicine_decide
+
++ DG map 202 section m202_medicine_decide
+  CALL_FUNCTION cleanMoodEmote
+
+  SET_PSTAT pstat=0x75 value=0x06
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Keep price at 1000 bits" -> m202_medicine_keep
+    "Raise price to 1200 bits" -> m202_medicine_raise
+    "Raise price to 1400 bits" -> m202_medicine_raise2
+  .end
+  UNUSED_12
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Uh, you wanted a good deal"
+    "on {color:06}Medicine{color:01}, right?"
+  .end
+  JUMP_TO m202_medicine_decide
+
++ DG map 202 section m202_medicine_keep
+  CALL_FUNCTION addMoodEmote mood=0x00
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How's 1000 bits for {color:06}Medicine{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=1
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Continue" -> m202_medicine_confirm_keep
+    "Let me rethink this" -> m202_medicine_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_medicine_decide
+
++ DG map 202 section m202_medicine_raise
+  CALL_FUNCTION addMoodEmote mood=0x02
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How about 1200 bits for"
+    "{color:06}Medicine{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=2
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Continue" -> m202_medicine_confirm_raise
+    "Let me rethink this" -> m202_medicine_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_medicine_decide
+
++ DG map 202 section m202_medicine_raise2
+  CALL_FUNCTION addMoodEmote mood=0x03
+
+  SET_DIALOG_OWNER entity=0xff
+  .text
+    "How about 1400 bits for"
+    "{color:06}Medicine{color:01}?"
+  .end
+  SET_PSTAT pstat=0x75 value=3
+  SET_DIALOG_OWNER entity=0xff
+  .selection
+    "Continue" -> m202_medicine_confirm_raise2
+    "Let me rethink this" -> m202_medicine_decide
+  .end
+  UNUSED_12
+  JUMP_TO m202_medicine_decide
+
++ DG map 202 section m202_medicine_confirm_keep
+  CALL_FUNCTION gotoIf chances=$CHANCE_KEEP goto=m202_medicine_success
+  JUMP_TO m202_medicine_fail
+
++ DG map 202 section m202_medicine_confirm_raise
+  CALL_FUNCTION gotoIf chances=$CHANCE_RAISE goto=m202_medicine_success
+  JUMP_TO m202_medicine_fail
+
++ DG map 202 section m202_medicine_confirm_raise2
+  CALL_FUNCTION gotoIf chances=$CHANCE_RAISE2 goto=m202_medicine_success
+  JUMP_TO m202_medicine_fail
+
++ DG map 202 section m202_medicine_success
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "Okay, I'll buy it!"
+  .end
+  PLAY_SOUND bank=0x08 sound=0x06
+  DELAY frames=0x000a
+  
+  .if
+    THEN pstat 0x75 == 2
+    if true goto m202_medicine_success_raise
+  .end
+  .if
+    THEN pstat 0x75 == 3
+    if true goto m202_medicine_success_raise2
+  .end
+  CALL_FUNCTION addProfit high=0x01 low=0x2c value=300
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_medicine_success_raise
+  CALL_FUNCTION addProfit high=0x01 low=0xf4 value=500
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_medicine_success_raise2
+  CALL_FUNCTION addProfit high=0x02 low=0xbc value=700
+  JUMP_TO m202_success_leave
+
++ DG map 202 section m202_medicine_fail
+  CALL_FUNCTION cleanMoodEmote
+  ADD_TO_PSTAT pstat=0x77 amount=0x01
+  STORE_RANDOM pstat_out=0x6e max=99
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_1
+    AND pstat 0x77 == 0x01
+    if true goto m202_angry_leave
+  .end
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_2
+    AND pstat 0x77 == 0x02
+    if true goto m202_angry_leave
+  .end
+  .if
+    THEN pstat 0x6e < $CHANCE_LEAVE_3
+    AND pstat 0x77 >= 0x03
+    if true goto m202_angry_leave
+  .end
+  JUMP_TO m202_medicine_retry
+
++ DG map 202 section m202_medicine_retry
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "That's a bit high."
+  .end
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Do you think so? Well then..."
+  .end
+  JUMP_TO m202_medicine_decide
+
+
+
+#  ██████╗ ██████╗ ███╗   ███╗███╗   ███╗ ██████╗ ███╗   ██╗
+# ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔═══██╗████╗  ██║
+# ██║     ██║   ██║██╔████╔██║██╔████╔██║██║   ██║██╔██╗ ██║
+# ██║     ██║   ██║██║╚██╔╝██║██║╚██╔╝██║██║   ██║██║╚██╗██║
+# ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║╚██████╔╝██║ ╚████║
+#  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
+############################################################
+
++ DG map 202 section m202_success_leave
+  SET_PSTAT pstat=0x77 value=0x00
+  PLAY_SOUND bank=0x00 sound=0x17
+  DELAY frames=0x0014
+  CALL_FUNCTION cleanMoodEmote
+  ENTITY_WALK_TO entity=$ENTITY x=-109 z=-853 animation=0x00 flags=0x00
+  WAIT_FOR_ENTITY entity=$ENTITY
+  UNLOAD_ENTITY entity=$ENTITY
+  UNLOAD_DIGIMON digimon=$DIGIMON
+  DELAY frames=0x0014
+  JUMP_TO_FILE map=0x0031 section=0x0052
+  #.copy m0+0x03fa 0x0002
+
++ DG map 202 section m202_angry_leave
+  SET_DIALOG_OWNER entity=$ENTITY
+  .text
+    "I'm leaving!!"
+  .end
+  SET_PSTAT pstat=0x77 value=0x00
+  PLAY_SOUND bank=0x08 sound=0x07
+  DELAY frames=0x000a
+  CALL_FUNCTION cleanMoodEmote
+  ENTITY_WALK_TO entity=$ENTITY x=-109 z=-853 animation=0x00 flags=0x00
+  WAIT_FOR_ENTITY entity=$ENTITY
+  UNLOAD_ENTITY entity=$ENTITY
+  UNLOAD_DIGIMON digimon=$DIGIMON
+  DELAY frames=0x0028
+  SET_DIALOG_OWNER entity=0xfd
+  .text
+    "Man, where are the customers?"
+  .end
+  FADEOUT_HUD textbox=0x00
+  ADD_TO_PSTAT pstat=0x7b amount=0x01
+  JUMP_TO_FILE map=0x0031 section=0x0052
+
+
+
+# ███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
+# ██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+# █████╗  ██║   ██║██╔██╗ ██║██║        ██║   ██║██║   ██║██╔██╗ ██║███████╗
+# ██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║╚════██║
+# ██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
+# ╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+############################################################################
+
++ FUNCTION gotoIf chances goto
+  STORE_RANDOM pstat_out=0x6e max=99
+  .if
+    THEN pstat 0x6e < $chances
+    if true goto $goto
+  .end
+.end
+
++ FUNCTION addProfit high low value
+  SET_TEXTBOX_SIZE origin=0x00 columns=12 rows=2
+
+  SET_PSTAT pstat=0xf3 value=$high  # shop variable high byte
+  SET_PSTAT pstat=0xf4 value=$low   # shop variable low byte
+  CALL_ROUTINE builtin=0x1f         # fn addProfit
+
+  .text
+    "Profit: $value"
+    "Total Profit: {shop_variable:00}"
+  .end
+.end
+
++ FUNCTION addMoodEmote mood
+  SET_PSTAT pstat=0xf7 value=$ENTITY  # builtin parameter 1 (entity/script id)
+  SET_PSTAT pstat=0xf8 value=$mood    # builtin parameter 2 (mood/amount)
+  CALL_ROUTINE builtin=0x1c
+.end
+
++ FUNCTION cleanMoodEmote
+  CALL_FUNCTION addMoodEmote mood=0x05
+.end
+
+
+
+- DG m202_b3e
+- DG m202_b4e
+- DG m202_b54
+- DG m202_bee
+- DG m202_b1de
+- DG m202_b2d8
+- DG m202_b3bc
+- DG m202_b4aa
+- DG m202_b586
+- DG m202_b674
+- DG m202_b742
+- DG m202_b834
+- DG m202_b910
+- DG m202_ba02
+- DG m202_ba16
+- DG m202_ba1a
+- DG m202_ba2e
+- DG m202_ba32
+- DG m202_ba46
+- DG m202_ba4a
+- DG m202_ba5e
+- DG m202_ba62
+- DG m202_ba76
+- DG m202_ba7a
+- DG m202_ba8e
+- DG m202_ba92
+- DG m202_baa6
+- DG m202_baaa
+- DG m202_babe
+- DG m202_bac2
+- DG m202_bad6
+- DG m202_bada
+- DG m202_bb68
+- DG m202_bbca
+- DG m202_bc22
+- DG m202_bc84
+- DG m202_bcdc
+- DG m202_bd36
+- DG m202_bd88
+- DG m202_bddc
+- DG m202_be26
+- DG m202_be56
+- DG m202_be7c
+- DG m202_be90
+- DG m202_bea4
+- DG m202_bea8
+- DG m202_bf30
+- DG m202_bf9e
+- DG m202_b104c
+- DG m202_b1144
+- DG m202_b1272
+- DG m202_b13a2
+- DG m202_b14ce
+- DG m202_b15fe
+- DG m202_b172a
+- DG m202_b1842
+- DG m202_b1972
+- DG m202_b1aa0
+- DG m202_b1bbe
+- DG m202_b1bd2
+- DG m202_b1bd6
+- DG m202_b1bea
+- DG m202_b1bee
+- DG m202_b1c02
+- DG m202_b1c06
+- DG m202_b1c1a
+- DG m202_b1c1e
+- DG m202_b1c32
+- DG m202_b1c36
+- DG m202_b1c4a
+- DG m202_b1c4e
+- DG m202_b1c62
+- DG m202_b1c66
+- DG m202_b1c7a
+- DG m202_b1c7e
+- DG m202_b1c92
+- DG m202_b1c96
+- DG m202_b1d3c
+- DG m202_b1da6
+- DG m202_b1e16
+- DG m202_b1e84
+- DG m202_b1ef4
+- DG m202_b1f4c
+- DG m202_b1fa2
+- DG m202_b1ffa
+- DG m202_b2044
+- DG m202_b2048
+- DG m202_b206e
+- DG m202_b2082
+- DG m202_b2096
+- DG m202_b209a
+- DG m202_b210a
+- DG m202_b21a2
+- DG m202_b2296
+- DG m202_b23b0
+- DG m202_b24c2
+- DG m202_b25dc
+- DG m202_b26e6
+- DG m202_b27f8
+- DG m202_b28f8
+- DG m202_b2a08
+- DG m202_b2b14
+- DG m202_b2c28
+- DG m202_b2c3c
+- DG m202_b2c40
+- DG m202_b2c54
+- DG m202_b2c58
+- DG m202_b2c6c
+- DG m202_b2c70
+- DG m202_b2c84
+- DG m202_b2c88
+- DG m202_b2c9c
+- DG m202_b2ca0
+- DG m202_b2cb4
+- DG m202_b2cb8
+- DG m202_b2ccc
+- DG m202_b2cd0
+- DG m202_b2ce4
+- DG m202_b2ce8
+- DG m202_b2cfc
+- DG m202_b2d00
+- DG m202_b2d74
+- DG m202_b2dda
+- DG m202_b2e3c
+- DG m202_b2ea0
+- DG m202_b2f04
+- DG m202_b2f6a
+- DG m202_b2fcc
+- DG m202_b302e
+- DG m202_b3078
+- DG m202_b307c
+- DG m202_b30a2
+- DG m202_b30b6
+- DG m202_b30ca
+- DG m202_b30ce
