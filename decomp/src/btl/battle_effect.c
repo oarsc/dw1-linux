@@ -5098,7 +5098,11 @@ int32_t BTL_moduloInt32Variable(intptr_t p)
 
 int32_t BTL_divideInt32Variable(intptr_t p)
 {
+#ifdef DW1_NATIVE
+	*(int32_t *)p = DW1_DIV(*(int32_t *)p, EFE_SCRIPT_REGISTER);
+#else
 	*(int32_t *)p /= EFE_SCRIPT_REGISTER;
+#endif
 }
 
 int32_t BTL_multiplyInt32Variable(intptr_t p)
