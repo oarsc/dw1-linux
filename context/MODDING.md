@@ -105,6 +105,72 @@ by the section body. An existing entry with the same ID is redirected to the new
   END_SECTION
 ```
 
+#### Constants
+
+Define a compile-time text constant with `+ CONST NAME VALUE`, then use `$NAME` in SCN code or
+function arguments. Definitions are local to the `.scnmod` file and may appear before or after
+their use. Values use the same quoting and escaping rules as function arguments; quote values that
+contain spaces. Constants are textual substitutions, not run-time variables. Within a function, a
+parameter takes precedence over a constant with the same name.
+
+```text
++ CONST VALUE 0xf3
++ CONST DIGIMON_NAME "Agumon"
++ CONST OPTION "\"Selectable option\" -> m199_section"
+
+@ DG m199_section
+  SET_PSTAT pstat=0xf9 value=$VALUE
+  .text
+    "$DIGIMON_NAME"
+  .end
+  .selection
+    $OPTION
+  .end
+```
+
+#### Functions
+
+SCN mods can also define reusable, compile-time code templates with `+ FUNCTION NAME PARAM ...`
+and call them with `CALL_FUNCTION NAME param=value ...`. A call is replaced inline with the function
+body; `$param` placeholders are substituted with the supplied values. Define and call functions
+within the same `.scnmod` file. Calls may appear before their definitions, and templates may call
+other templates; recursive calls and missing/extra arguments are errors. Arguments are
+whitespace-separated single tokens (for example, `entity=0x06`). Close the definition with an
+unindented `.end`; indented `.end` lines inside SCN constructs such as `.if` remain part of the
+function body.
+
+```text
+@ DG m49_ba14
+  .if
+    THEN pstat 0xf3 >= 0x07
+    CALL_FUNCTION showEmote entity=0x06 mood=0x05
+  .end
+  ~CONTINUE
+
++ FUNCTION showEmote entity mood
+  SET_PSTAT pstat=0xf7 value=$entity
+  SET_PSTAT pstat=0xf8 value=$mood
+  CALL_ROUTINE builtin=0x1c
+.end
+```
+
+Quoted arguments can also carry a text or a complete SCN line. Escape its inner quotes so the argument
+parser keeps the line together, then insert it without adding more quotes in the function body:
+
+```text
+@ DG m199_ba14
+  CALL_FUNCTION addOption text="Let me rethink this"
+
++ FUNCTION addOption text
+  .selection
+    "$text" -> m199_meat_decide
+  .end
+.end
+```
+
+Escaping with `\"` or `\\\"` is supported.
+
+
 ### Map field mods (`*.maps.json`)
 
 Each JSON object is keyed by map filename (for example `TRAI00`), then by `warps` or `npcs`,

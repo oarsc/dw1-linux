@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import textwrap
 from pathlib import Path
 
 
@@ -13,6 +14,8 @@ def apply_script_mod(source: str, mod_path: Path) -> str:
     lines = source.splitlines()
     source_file = "DG" if any(row.strip() == ".scn DG" for row in lines) else "MAPHEAD"
     directives = mod_path.read_text(encoding="utf-8").splitlines()
+    directives, functions = _extract_functions(directives, mod_path)
+    directives, constants = _extract_constants(directives, mod_path)
     blocks: list[tuple[str, str, list[str], str]] = []
     current: tuple[str, str, list[str]] | None = None
     for number, line in enumerate(directives, 1):
@@ -46,6 +49,7 @@ def apply_script_mod(source: str, mod_path: Path) -> str:
     for file_name, label, body, mode in blocks:
         if file_name != source_file:
             continue
+        body = _expand_function_calls(body, functions, mod_path, constants=constants)
         if mode == "delete":
             if any(line.strip() and not line.lstrip().startswith("#") for line in body):
                 raise ValueError(f"{mod_path}: - DG {label} does not take a body")
@@ -204,6 +208,187 @@ def apply_script_mod(source: str, mod_path: Path) -> str:
             # No continuation marker retains the established full-block replacement mode.
             lines[start + 1:following] = body
     return "\n".join(lines) + "\n"
+
+
+def _extract_functions(
+    directives: list[str], mod_path: Path
+) -> tuple[list[str], dict[str, tuple[list[str], list[str]]]]:
+    """Remove + FUNCTION declarations and collect their parameterized bodies."""
+    remaining: list[str] = []
+    functions: dict[str, tuple[list[str], list[str]]] = {}
+    index = 0
+    while index < len(directives):
+        line = directives[index]
+        if not line.startswith("+ FUNCTION"):
+            remaining.append(line)
+            index += 1
+            continue
+
+        parts = line.split()
+        if len(parts) < 3 or parts[:2] != ["+", "FUNCTION"]:
+            raise ValueError(f"{mod_path}:{index + 1}: expected + FUNCTION NAME [PARAM ...]")
+        name, params = parts[2], parts[3:]
+        if not re.fullmatch(r"[A-Za-z_]\w*", name):
+            raise ValueError(f"{mod_path}:{index + 1}: invalid function name {name!r}")
+        if any(not re.fullmatch(r"[A-Za-z_]\w*", param) for param in params):
+            raise ValueError(f"{mod_path}:{index + 1}: invalid function parameter")
+        if len(set(params)) != len(params):
+            raise ValueError(f"{mod_path}:{index + 1}: duplicate function parameter")
+        if name in functions:
+            raise ValueError(f"{mod_path}:{index + 1}: duplicate function {name!r}")
+
+        body: list[str] = []
+        index += 1
+        while index < len(directives) and directives[index] != ".end":
+            body.append(directives[index])
+            index += 1
+        if index == len(directives):
+            raise ValueError(f"{mod_path}: function {name!r} is missing its unindented .end")
+        if not any(row.strip() and not row.lstrip().startswith("#") for row in body):
+            raise ValueError(f"{mod_path}: function {name!r} has an empty body")
+        functions[name] = (params, textwrap.dedent("\n".join(body)).splitlines())
+        index += 1
+    return remaining, functions
+
+
+def _extract_constants(
+    directives: list[str], mod_path: Path
+) -> tuple[list[str], dict[str, str]]:
+    """Remove + CONST declarations and collect their decoded textual values."""
+    remaining: list[str] = []
+    constants: dict[str, str] = {}
+    for number, line in enumerate(directives, 1):
+        if not line.startswith("+ CONST"):
+            remaining.append(line)
+            continue
+        parts = line.split(maxsplit=3)
+        if len(parts) != 4 or parts[:2] != ["+", "CONST"]:
+            raise ValueError(f"{mod_path}:{number}: expected + CONST NAME VALUE")
+        name, raw_value = parts[2], parts[3]
+        if not re.fullmatch(r"[A-Za-z_]\w*", name):
+            raise ValueError(f"{mod_path}:{number}: invalid constant name {name!r}")
+        if name in constants:
+            raise ValueError(f"{mod_path}:{number}: duplicate constant {name!r}")
+        values = _split_call_arguments(raw_value, mod_path, f"CONST {name}")
+        if len(values) != 1 or not values[0]:
+            raise ValueError(f"{mod_path}:{number}: constant {name!r} needs one nonempty value")
+        constants[name] = values[0]
+    return remaining, constants
+
+
+def _expand_function_calls(
+    lines: list[str],
+    functions: dict[str, tuple[list[str], list[str]]],
+    mod_path: Path,
+    stack: tuple[str, ...] = (),
+    parameters: dict[str, str] | None = None,
+    base_indent: str = "",
+    constants: dict[str, str] | None = None,
+) -> list[str]:
+    """Expand CALL_FUNCTION lines, substituting named arguments."""
+    call_pattern = re.compile(r"^(\s*)CALL_FUNCTION\s+([A-Za-z_]\w*)(?:\s+(.*?))?\s*$")
+    expanded: list[str] = []
+    for line in lines:
+        match = call_pattern.match(line)
+        if match:
+            indent, name, raw_args = match.groups()
+            args: dict[str, str] = {}
+            for token in _split_call_arguments(raw_args or "", mod_path, name):
+                key, separator, value = token.partition("=")
+                if not separator or not re.fullmatch(r"[A-Za-z_]\w*", key):
+                    raise ValueError(f"{mod_path}: invalid argument {token!r} in CALL_FUNCTION {name}")
+                if key in args:
+                    raise ValueError(f"{mod_path}: duplicate argument {key!r} in CALL_FUNCTION {name}")
+                # Resolve references from the current function only after parsing
+                # the call. The resulting value is passed directly, not lexed again.
+                args[key] = _substitute_function_parameters(
+                    value, parameters, constants or {}, mod_path, stack
+                )
+
+            if name not in functions:
+                raise ValueError(f"{mod_path}: call to undefined function {name!r}")
+            if name in stack:
+                chain = " -> ".join((*stack, name))
+                raise ValueError(f"{mod_path}: recursive function expansion: {chain}")
+            params, body = functions[name]
+            missing = set(params) - args.keys()
+            extra = args.keys() - set(params)
+            if missing or extra:
+                raise ValueError(
+                    f"{mod_path}: CALL_FUNCTION {name} argument mismatch; "
+                    f"missing {sorted(missing)}, unknown {sorted(extra)}"
+                )
+            expanded.extend(
+                _expand_function_calls(
+                    body, functions, mod_path, (*stack, name), dict(args),
+                    base_indent + indent, constants,
+                )
+            )
+        else:
+            rendered = _substitute_function_parameters(
+                line, parameters, constants or {}, mod_path, stack
+            )
+            expanded.append(base_indent + rendered if rendered.strip() else "")
+    return expanded
+
+
+def _substitute_function_parameters(
+    text: str,
+    parameters: dict[str, str] | None,
+    constants: dict[str, str],
+    mod_path: Path,
+    stack: tuple[str, ...],
+) -> str:
+    def substitute(parameter: re.Match[str]) -> str:
+        key = parameter.group(1)
+        if parameters is not None and key in parameters:
+            return parameters[key]
+        if key in constants:
+            return constants[key]
+        if parameters is not None:
+            function = stack[-1] if stack else "<unknown>"
+            raise ValueError(f"{mod_path}: function {function!r} uses undeclared parameter ${key}")
+        raise ValueError(f"{mod_path}: undefined constant ${key}")
+
+    return re.sub(r"\$([A-Za-z_]\w*)", substitute, text)
+
+
+def _split_call_arguments(text: str, mod_path: Path, function: str) -> list[str]:
+    """Split named arguments on unquoted whitespace and unescape quoted values."""
+    tokens: list[str] = []
+    token: list[str] = []
+    quoted = False
+    escaped = False
+
+    def finish_token() -> None:
+        if token:
+            tokens.append("".join(token))
+            token.clear()
+
+    for char in text:
+        if escaped:
+            if char in ('"', "\\"):
+                token.append(char)
+            else:
+                token.extend(("\\", char))
+            escaped = False
+        elif quoted and char == "\\":
+            escaped = True
+        elif char == '"':
+            quoted = not quoted
+        elif char == "#" and not quoted:
+            break
+        elif char.isspace() and not quoted:
+            finish_token()
+        else:
+            token.append(char)
+
+    if escaped:
+        raise ValueError(f"{mod_path}: dangling escape in CALL_FUNCTION {function} arguments")
+    if quoted:
+        raise ValueError(f"{mod_path}: unterminated quote in CALL_FUNCTION {function} arguments")
+    finish_token()
+    return tokens
 
 
 def apply_map_mods(text: str, changes: dict, name: str) -> str:

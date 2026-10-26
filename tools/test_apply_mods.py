@@ -160,6 +160,200 @@ m49_b2:
             with self.assertRaisesRegex(ValueError, "does not take a body"):
                 apply_mods.apply_script_mod(source, mod)
 
+    def test_function_call_expands_named_arguments_and_nested_end(self):
+        source = """# DW1-SCN-TEXT 1
+.scn DG
+.map 49
+  .entries
+    0x001 -> m49_ba14
+  .end
+m49_ba14:
+  END_SECTION
+m49_bacc:
+  END_SECTION
+.end
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = Path(tmp) / "function.scnmod"
+            mod.write_text("""@ DG m49_ba14
+  .if
+    THEN pstat 0xf3 >= 0x07
+    CALL_FUNCTION showEmote entity=0x06 mood=0x05 # add emote
+  .end
+  ~CONTINUE
+
++ FUNCTION showEmote entity mood
+  .if
+    THEN pstat $entity >= $mood
+  .end
+  SET_PSTAT pstat=0xf7 value=$entity
+  SET_PSTAT pstat=0xf8 value=$mood
+.end
+""")
+            result = apply_mods.apply_script_mod(source, mod)
+        self.assertIn("pstat 0x06 >= 0x05", result)
+        self.assertIn("pstat=0xf7 value=0x06", result)
+        self.assertIn("pstat=0xf8 value=0x05", result)
+        self.assertNotIn("CALL_FUNCTION", result)
+        self.assertNotIn("$entity", result)
+        self.assertLess(result.index("pstat=0xf8 value=0x05"), result.index("END_SECTION"))
+
+    def test_function_call_checks_arguments_and_recursion(self):
+        source = """# DW1-SCN-TEXT 1
+.scn DG
+.map 1
+  .entries
+  .end
+label:
+  END_SECTION
+.end
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = Path(tmp) / "function.scnmod"
+            mod.write_text("""@ DG label
+  CALL_FUNCTION f value=1
+
++ FUNCTION f value
+  CALL_FUNCTION f value=$value
+.end
+""")
+            with self.assertRaisesRegex(ValueError, "recursive function"):
+                apply_mods.apply_script_mod(source, mod)
+
+            mod.write_text("""@ DG label
+  CALL_FUNCTION f
+
++ FUNCTION f value
+  SET_PSTAT pstat=0xf7 value=$value
+.end
+""")
+            with self.assertRaisesRegex(ValueError, "argument mismatch"):
+                apply_mods.apply_script_mod(source, mod)
+
+    def test_function_arguments_support_quoted_text_and_escaped_quotes(self):
+        source = """# DW1-SCN-TEXT 1
+.scn DG
+.map 1
+  .entries
+  .end
+label:
+  END_SECTION
+.end
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = Path(tmp) / "quoted.scnmod"
+            mod.write_text(r'''@ DG label
+  CALL_FUNCTION showText text="Let me rethink this"
+  CALL_FUNCTION addOption selectionOption="\"Let me rethink this\" -> m1_b2" # option
+
++ FUNCTION showText text
+  .text
+    "$text"
+  .end
+.end
+
++ FUNCTION addOption selectionOption
+  $selectionOption
+.end
+''')
+            result = apply_mods.apply_script_mod(source, mod)
+        self.assertIn('"Let me rethink this"', result)
+        self.assertIn('"Let me rethink this" -> m1_b2', result)
+        self.assertNotIn("CALL_FUNCTION", result)
+
+    def test_nested_function_forwards_decoded_multiline_argument_without_retokenizing(self):
+        source = """# DW1-SCN-TEXT 1
+.scn DG
+.map 199
+  .entries
+  .end
+m199_test:
+  END_SECTION
+.end
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = Path(tmp) / "nested.scnmod"
+            mod.write_text(r'''@ DG m199_test
+  CALL_FUNCTION doSomething option="\"Let me rethink this\" -> m199_test"
+
++ FUNCTION doSomething option
+  .selection
+    $option
+  .end
+  CALL_FUNCTION doSomething2 option=$option
+.end
+
++ FUNCTION doSomething2 option
+  .selection
+    $option
+  .end
+.end
+''')
+            result = apply_mods.apply_script_mod(source, mod)
+        self.assertEqual(result.count('"Let me rethink this" -> m199_test'), 2)
+        self.assertNotIn("CALL_FUNCTION", result)
+
+    def test_constants_expand_in_code_and_function_arguments_regardless_of_order(self):
+        source = """# DW1-SCN-TEXT 1
+.scn DG
+.map 1
+  .entries
+  .end
+label:
+  END_SECTION
+next:
+  END_SECTION
+.end
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = Path(tmp) / "constants.scnmod"
+            mod.write_text(r'''@ DG label
+  SET_PSTAT pstat=$FIELD value=0x03
+  .text
+    "$NAME"
+  .end
+  CALL_FUNCTION choose option=$OPTION
+
++ FUNCTION choose option
+  .selection
+    $option
+  .end
+.end
+
++ CONST FIELD 0xf7
++ CONST NAME "Pepito"
++ CONST OPTION "\"Selectable option\" -> next"
+''')
+            result = apply_mods.apply_script_mod(source, mod)
+        self.assertIn("SET_PSTAT pstat=0xf7 value=0x03", result)
+        self.assertIn('"Pepito"', result)
+        self.assertIn('"Selectable option" -> next', result)
+        self.assertNotIn("$FIELD", result)
+        self.assertNotIn("CALL_FUNCTION", result)
+
+    def test_constants_reject_duplicate_and_unterminated_definitions(self):
+        source = """# DW1-SCN-TEXT 1
+.scn DG
+.map 1
+  .entries
+  .end
+label:
+  END_SECTION
+.end
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = Path(tmp) / "constants.scnmod"
+            mod.write_text("""+ CONST VALUE 1
++ CONST VALUE 2
+""")
+            with self.assertRaisesRegex(ValueError, "duplicate constant"):
+                apply_mods.apply_script_mod(source, mod)
+
+            mod.write_text("""+ CONST VALUE "unterminated
+""")
+            with self.assertRaisesRegex(ValueError, "unterminated quote"):
+                apply_mods.apply_script_mod(source, mod)
+
     def test_continue_injects_before_and_before_end_section(self):
         source = """# DW1-SCN-TEXT 1
 .object MAPHEAD
