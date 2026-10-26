@@ -244,7 +244,7 @@ void renderBox(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t r,
                uint8_t g, uint8_t b, uint8_t flags, int32_t otz);
 void renderDigimonMoveBox(void);
 int32_t getCardAmount(uint8_t card);
-int32_t loadStackedTIMEntry(char *path, u_long buffer, int32_t offset,
+int32_t loadStackedTIMEntry(char *path, void *buffer, int32_t offset,
                             int32_t sectors);
 void renderNumber(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e,
                   int32_t f);
